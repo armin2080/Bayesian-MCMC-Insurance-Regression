@@ -1,5 +1,45 @@
 # Bayesian-MCMC-Insurance-Regression
 
+A statistical analysis project implementing Bayesian MCMC regression models to predict medical insurance costs. This project includes implementations in both Python and R.
+
+## Project Structure
+
+```
+├── data/                      # Shared datasets
+│   └── expenses.csv          # Medical insurance dataset
+├── plots/                     # Visualizations
+├── python/                    # Python implementation
+│   ├── data_downloader.py    # Script to download dataset from Kaggle
+│   ├── notebook.ipynb        # Jupyter notebook with analysis
+│   ├── requirements.txt      # Python dependencies
+│   └── env/                  # Python virtual environment
+└── r/                         # R implementation
+    ├── scripts/
+    │   ├── Data_Preprocessing.R
+    │   └── Model_Setup.R
+    └── outputs/              # R analysis outputs
+        ├── cor_matrix.txt
+        └── ols_output.txt
+```
+
+## Getting Started
+
+### Python Setup
+```bash
+cd python
+source env/bin/activate
+pip install -r requirements.txt
+jupyter notebook notebook.ipynb
+```
+
+### R Setup
+```bash
+cd r/scripts
+# Install required R packages, then:
+Rscript Data_Preprocessing.R
+Rscript Model_Setup.R
+```
+
 ## Data Overview
 
 This project uses the Medical Insurance Cost dataset from Kaggle, containing information about insurance charges based on various factors.
