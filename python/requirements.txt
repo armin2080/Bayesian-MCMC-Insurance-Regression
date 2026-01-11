@@ -1,3 +1,7 @@
 kagglehub
 pandas
 scikit-learn
+matplotlib
+seaborn
+numpy
+scipy
