@@ -1,22 +1,28 @@
 
+library(MASS)
+
 #' @param y Numeric vector. Response variable.
 #' @param X Numeric matrix or data frame. Predictor variables.
 #' @param n_iter Integer. Total number of Gibbs sampling iterations. Default is 10000.
 #' @param warmup Integer. Number of initial samples to discard (burn-in). Default is 2000.
-#' @param b0 Numeric vector. Prior mean for regression coefficients. Default is 0.
-#' @param B0 Numeric matrix. Prior precision matrix for regression coefficients. Default is diagonal matrix with 1e-4.
-#' @param a0 Numeric. Shape parameter for inverse gamma prior on sigma^2. Default is 0.01.
-#' @param d0 Numeric. Scale parameter for inverse gamma prior on sigma^2. Default is 0.01.
-#' @param seed Integer. Random seed for reproducibility. Default is 123.
-
-#' @return A list with components:
+#' @param n_chains Integer. Number of independent MCMC chains to run. Default is 3.
+#' @param b0 Numeric vector. Prior mean for regression coefficients (\eqn{\beta}). Default is a zero vector.
+#' @param B0 Numeric matrix. Prior precision matrix for regression coefficients (\eqn{\beta}). 
+#'   Default is a diagonal matrix with small values (1e-4) indicating weak prior information.
+#' @param a0 Numeric. Shape parameter for inverse gamma prior on \eqn{\sigma^2}. Default is 0.01.
+#' @param d0 Numeric. Scale parameter for inverse gamma prior on \eqn{\sigma^2}. Default is 0.01.
+#' @param seed Integer. Random seed base value for reproducibility across chains. Default is 123.
+#
+#' @return A list containing posterior samples from each chain:
 #' \describe{
-#'   \item{beta}{Matrix of sampled regression coefficients (after burn-in).}
-#'   \item{sigma2}{Vector of sampled sigma^2 values (after burn-in).}
+#'   \item{chain_results}{A list of length equal to `n_chains`, where each element contains:}
+#'     \describe{
+#'       \item{beta}{Matrix of sampled regression coefficients after burn-in; rows correspond to iterations, columns to predictors.}
+#'       \item{sigma2}{Vector of sampled error variances after burn-in for that chain.}
+#'     }
 #' }
 #'
 
-library(MASS)
 gibbs_lm <- function(y, X,
                      n_iter = 10000,
                      warmup = 2000,
@@ -114,18 +120,24 @@ gibbs_lm <- function(y, X,
 # Trace Plots for Beta & Sigma^2
 #-----------------------------------------
 
-
-beta_trace_plot <- function(beta_list) {
+beta_trace_plot <- function(beta_list, model_name) {
   
   n_chains <- length(beta_list)
   p <- ncol(beta_list[[1]])
 
+  plot_dir <- file.path("plots", model_name)
+  
+  if (!dir.exists(plot_dir)) {
+    dir.create(plot_dir, recursive = TRUE)
+    message("Created folder: ", plot_dir)
+  }
   
   colors <- rainbow(n_chains)
   
   for (j in 1:p) {
-    filename <- paste0("plots/beta_trace_plots", "_", j, ".png")  
-    png(filename = filename, width = 1200, height = 1600, res = 150)
+    
+    filename <- file.path(plot_dir, paste0("beta_trace_", j, ".png"))
+    png(filename = filename, width = 1600, height = 1200, res = 150)
     plot(NULL,
          xlim = c(1, nrow(beta_list[[1]])),
          ylim = range(sapply(beta_list, function(x) x[, j])),
@@ -141,17 +153,26 @@ beta_trace_plot <- function(beta_list) {
            col = colors, lty = 1, cex = 0.8)
     
     dev.off()
+    message("Saved: ", filename)
   }
   
 }
 
 
-sigma2_trace_plot <- function(sigma2_list){
+sigma2_trace_plot <- function(sigma2_list,model_name){
   
   n_chains <- length(sigma2_list)
   colors <- rainbow(n_chains)
   
-  png("plots/sigma2_trace_plot.png", width = 800, height = 600, res = 150)
+  plot_dir <- file.path("plots", model_name)
+  
+  if (!dir.exists(plot_dir)) {
+    dir.create(plot_dir, recursive = TRUE)
+    message("Created folder: ", plot_dir)
+  }
+  
+  filename <- file.path(plot_dir, paste0("Sigma_trace.png"))
+  png(filename = filename, width = 1600, height = 1200, res = 150)
   plot(NULL,
        xlim = c(1, length(sigma2_list[[1]])),
        ylim = range(sapply(sigma2_list, range)),
@@ -168,6 +189,7 @@ sigma2_trace_plot <- function(sigma2_list){
   legend("topright", legend = paste("Chain", 1:n_chains),
          col = colors, lty = 1, cex = 0.8)
   dev.off()
+  message("Saved: ", filename)
 }
 
 #---------------------------------------------
@@ -207,5 +229,4 @@ sigma2_summary_stats <- function(sigma2_list) {
   
   return(round(sigma2_summary, 4))
 }
-
 

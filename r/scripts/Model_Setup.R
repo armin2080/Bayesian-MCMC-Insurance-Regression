@@ -48,8 +48,9 @@ gibbs_result <- gibbs_lm(
 beta_list <- lapply(gibbs_result, function(chain) chain$beta)
 sigma2_list <- lapply(gibbs_result, function(chain) chain$sigma2)
 
-beta_trace_plot(beta_list)
-sigma2_trace_plot(sigma2_list)
+# Saves trace plot images for each model in its own folder to avoid file overwriting. Pass the model name as an argument
+beta_trace_plot(beta_list,"gibbs_result")
+sigma2_trace_plot(sigma2_list,"gibbs_result")
 
 beta_summary_stats(beta_list)
 sigma2_summary_stats(sigma2_list)
