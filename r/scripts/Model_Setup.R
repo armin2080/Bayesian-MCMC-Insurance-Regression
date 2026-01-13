@@ -67,6 +67,3 @@ acf_plot_sigma2(sigma2_list, "gibbs_result")
 ess_beta_table(beta_list, x, "gibbs_result")
 ess_sigma2_table(sigma2_list, "gibbs_result")
 
-
-
-
