@@ -34,7 +34,7 @@ sink()
 source("r/scripts/Gibbs_Sampling.R")
 
 # Run Gibbs sampler
-set.seed(123)  
+set.seed(123)
 gibbs_result <- gibbs_lm(
   y = y,        
   X = x,        
@@ -54,9 +54,10 @@ beta_summary_stats(beta_list)
 sigma2_summary_stats(sigma2_list)
 
 #-------------------------------------------
-# Run Correlation plots
+# Run Autocorrelation plots
 #-------------------------------------------
 
+# Load Convergence function
 source("r/scripts/Convergence_Detection.R")
 
 # ACF plots
@@ -67,3 +68,21 @@ acf_plot_sigma2(sigma2_list, "gibbs_result")
 ess_beta_table(beta_list, x, "gibbs_result")
 ess_sigma2_table(sigma2_list, "gibbs_result")
 
+
+#----------------------------------------------
+# Run Posterior Predictive
+#----------------------------------------------
+
+# Load PPC function
+source("r/scripts/Posterior_Inference.R")
+
+# PPC
+# use training design matrix for PPC : X_new = x
+y_rep <- posterior_predictive(
+  beta_list = beta_list,
+  sigma2_list = sigma2_list,
+  X_new = x)
+
+# PPC plot
+ppc_plot(y, y_rep, "gibbs_result")
+PPC_density_overlay(y, y_rep, "gibbs_result")
