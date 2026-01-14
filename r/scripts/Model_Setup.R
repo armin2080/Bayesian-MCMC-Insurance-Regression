@@ -7,6 +7,7 @@ x <- model.matrix(
   ~ age + sex + bmi + children + smoker,
   data = expenses_clean
 )
+
 n <- nrow(x)
 p <- ncol(x)
 
@@ -86,3 +87,6 @@ y_rep <- posterior_predictive(
 # PPC plot
 ppc_plot(y, y_rep, "gibbs_result")
 PPC_density_overlay(y, y_rep, "gibbs_result")
+ppc_residual_plot(y, y_rep, "gibbs_result")
+
+

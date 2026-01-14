@@ -14,8 +14,8 @@ sapply(expenses, typeof)
 # (1.3) Convert binary variables to 0/1:
 expenses_clean <- expenses %>%
   mutate(
-    sex = ifelse(sex == "male", 1, 0),
-    smoker = ifelse(smoker == "yes", 1, 0)
+    sex = ifelse(sex == "male", 1, 0), # female = 0, reference category
+    smoker = ifelse(smoker == "yes", 1, 0) # nonsmoker = 0, reference category
   )
 
 # (1.4) Remove duplicates:
@@ -60,7 +60,7 @@ outlier_counts
 expenses_clean <- expenses_clean %>%
   mutate(
     across(
-      .cols = c(age, bmi, charges, children),
+      .cols = c(age, bmi, children),
       .fns = ~ as.numeric(scale(.))
     )
   )
