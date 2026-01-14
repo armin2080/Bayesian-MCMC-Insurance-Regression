@@ -81,8 +81,9 @@ ppc_plot <- function(y_obs, y_rep, model_name) {
   message("saved: ", file_name)
 }
 
+
 #----------------------------------------
-# Density Overlay PPC
+# (2.3) Density Overlay PPC
 #----------------------------------------
 
 PPC_density_overlay <- function(y_obs, y_rep, model_name) {
@@ -114,6 +115,43 @@ PPC_density_overlay <- function(y_obs, y_rep, model_name) {
         y = "Density"
       )
   )
+  dev.off()
+  message("Saved: ", file_name)
+}
+
+
+#------------------------------------------
+# (2.4) Residuals Posterior Predictive Check
+#------------------------------------------
+
+ppc_residual_plot <- function(y_obs, y_rep, model_name) {
+  
+  plot_dir <- file.path("plots", model_name, "PPC")
+  if (!dir.exists(plot_dir))
+    dir.create(plot_dir, recursive = TRUE)
+  
+  predict_mean <- colMeans(y_rep)
+  residuals <- y_obs - predict_mean
+  
+  df <- data.frame(
+    predicted = predict_mean,
+    residual = residuals
+  )
+  
+  file_name <- file.path(plot_dir, "PPC_Residuals.png")
+  png(file_name, width = 1600, height = 1200, res = 150)
+  
+  print(
+    ggplot(df, aes(x = predicted, y = residual)) +
+      geom_point(alpha = 0.4) +
+      theme_minimal() +
+      labs(
+        title = "Posterior Predictive Residual Check",
+        x = "Posterior Mean Prediction",
+        y = "Predictive Residual"
+      )
+  )
+  
   dev.off()
   message("Saved: ", file_name)
 }
