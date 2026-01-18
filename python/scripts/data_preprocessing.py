@@ -1,9 +1,3 @@
-"""
-Data Preprocessing for Insurance Expenses Dataset
-
-This module handles data cleaning, preprocessing, and transformation of the insurance expenses dataset.
-"""
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,36 +6,10 @@ from pathlib import Path
 
 
 def load_data(filepath='../../data/expenses.csv'):
-    """
-    Load the insurance expenses dataset.
-    
-    Parameters
-    ----------
-    filepath : str
-        Path to the expenses CSV file
-        
-    Returns
-    -------
-    pd.DataFrame
-        Loaded dataset
-    """
     return pd.read_csv(filepath)
 
 
 def check_missing_values(df):
-    """
-    Check for missing values in the dataset.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input dataframe
-        
-    Returns
-    -------
-    pd.Series
-        Count of missing values per column
-    """
     missing = df.isnull().sum()
     print("Missing values per column:")
     print(missing)
@@ -49,14 +17,6 @@ def check_missing_values(df):
 
 
 def check_data_types(df):
-    """
-    Display data types and structure of the dataset.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input dataframe
-    """
     print("\nData Types:")
     print(df.dtypes)
     print("\nDataset Info:")
@@ -64,21 +24,6 @@ def check_data_types(df):
 
 
 def encode_binary_variables(df):
-    """
-    Convert binary categorical variables to 0/1 encoding.
-    - sex: male=1, female=0 (reference category)
-    - smoker: yes=1, no=0 (reference category)
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input dataframe
-        
-    Returns
-    -------
-    pd.DataFrame
-        Dataframe with encoded binary variables
-    """
     df_clean = df.copy()
     df_clean['sex'] = (df_clean['sex'] == 'male').astype(int)
     df_clean['smoker'] = (df_clean['smoker'] == 'yes').astype(int)
@@ -86,19 +31,6 @@ def encode_binary_variables(df):
 
 
 def remove_duplicates(df):
-    """
-    Remove duplicate rows from the dataset.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input dataframe
-        
-    Returns
-    -------
-    pd.DataFrame
-        Dataframe with duplicates removed
-    """
     n_duplicates = df.duplicated().sum()
     print(f"\nNumber of duplicate rows: {n_duplicates}")
     
@@ -109,16 +41,6 @@ def remove_duplicates(df):
 
 
 def plot_boxplots(df, output_dir='../../plots'):
-    """
-    Create boxplots for all numeric features to visualize outliers.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input dataframe
-    output_dir : str
-        Directory to save the plot
-    """
     # Select numeric columns
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     
@@ -146,19 +68,6 @@ def plot_boxplots(df, output_dir='../../plots'):
 
 
 def count_outliers(series):
-    """
-    Count outliers in a series using IQR method.
-    
-    Parameters
-    ----------
-    series : pd.Series
-        Input series
-        
-    Returns
-    -------
-    int
-        Number of outliers
-    """
     Q1 = series.quantile(0.25)
     Q3 = series.quantile(0.75)
     IQR = Q3 - Q1
@@ -171,19 +80,6 @@ def count_outliers(series):
 
 
 def analyze_outliers(df):
-    """
-    Analyze outliers in all numeric columns.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input dataframe
-        
-    Returns
-    -------
-    dict
-        Dictionary with outlier counts per column
-    """
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     outlier_counts = {}
     
@@ -197,21 +93,6 @@ def analyze_outliers(df):
 
 
 def normalize_numeric_features(df, features_to_normalize=['age', 'bmi', 'children']):
-    """
-    Normalize (standardize) specified numeric features using z-score normalization.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input dataframe
-    features_to_normalize : list
-        List of column names to normalize
-        
-    Returns
-    -------
-    pd.DataFrame
-        Dataframe with normalized features
-    """
     df_normalized = df.copy()
     
     for feature in features_to_normalize:
@@ -224,24 +105,7 @@ def normalize_numeric_features(df, features_to_normalize=['age', 'bmi', 'childre
 
 def preprocess_data(input_path='../../data/expenses.csv', 
                    output_path='../../data/expenses_cleaned.csv',
-                   plot_dir='../../plots'):
-    """
-    Complete preprocessing pipeline for the insurance expenses dataset.
-    
-    Parameters
-    ----------
-    input_path : str
-        Path to the raw expenses CSV file
-    output_path : str
-        Path to save the cleaned dataset
-    plot_dir : str
-        Directory to save plots
-        
-    Returns
-    -------
-    pd.DataFrame
-        Cleaned and preprocessed dataframe
-    """
+                   plot_dir='../outputs'):
     print("=" * 60)
     print("DATA PREPROCESSING PIPELINE")
     print("=" * 60)

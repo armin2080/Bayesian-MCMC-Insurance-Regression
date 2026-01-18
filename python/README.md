@@ -6,17 +6,18 @@ Python implementation of Bayesian linear regression with Gibbs sampling.
 
 ```
 python/
-├── scripts/              # Analysis scripts (matches r/scripts/)
+├── scripts/              # Analysis scripts
 │   ├── data_preprocessing.py
 │   ├── gibbs_sampling.py
 │   ├── convergence_detection.py
 │   ├── posterior_inference.py
 │   ├── model_setup.py
 │   └── test_installation.py
-├── outputs/              # Output directory
+├── outputs/              # All generated results (plots, tables, diagnostics)
 ├── data_downloader.py    # Data download utility
-├── notebook.ipynb        # Jupyter notebook
-└── requirements.txt      # Dependencies
+├── notebook.ipynb        # Jupyter notebook with complete analysis
+├── requirements.txt      # Dependencies
+└── env/                  # Python virtual environment
 ```
 
 ## Quick Start
@@ -63,7 +64,8 @@ ess_beta_table(beta_list, X, 'model_name')
 
 ## Output
 
-- Trace plots: `../../plots/{model_name}/`
-- ACF plots: `../../plots/{model_name}/ACF_plots/`
-- PPC plots: `../../plots/{model_name}/PPC/`
-- ESS tables: `../../r/outputs/{model_name}/ESS_tables/`
+All results are saved to `outputs/{model_name}/`:
+- Trace plots: `outputs/{model_name}/trace_plots/`
+- ACF plots: `outputs/{model_name}/ACF_plots/`
+- PPC plots: `outputs/{model_name}/PPC/`
+- ESS tables: `../r/outputs/{model_name}/ESS_tables/`

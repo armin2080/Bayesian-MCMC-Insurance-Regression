@@ -1,19 +1,3 @@
-"""
-Bayesian MCMC Insurance Regression - Main Analysis Script
-
-This script orchestrates the complete Bayesian analysis pipeline:
-1. Data Preprocessing
-2. Model Setup and Baseline OLS
-3. Three Bayesian Models:
-   - Baseline model (no transformation)
-   - Log-transformed model
-   - Log-transformed with interaction (smoker:bmi)
-4. Convergence Diagnostics (ACF, ESS)
-5. Posterior Predictive Checks
-
-Author: Bayesian MCMC Insurance Regression Project
-"""
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -33,22 +17,6 @@ from posterior_inference import (posterior_predictive, ppc_plot,
 
 
 def create_design_matrix(df, formula='baseline'):
-    """
-    Create design matrix based on formula specification.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Preprocessed dataframe
-    formula : str
-        Model formula: 'baseline', 'log', or 'interaction'
-    
-    Returns
-    -------
-    tuple
-        (X, y, feature_names) where X is design matrix, y is response,
-        and feature_names is list of column names
-    """
     # Select features
     if formula == 'baseline':
         # charges ~ age + sex + bmi + children + smoker
@@ -82,19 +50,6 @@ def create_design_matrix(df, formula='baseline'):
 
 
 def run_ols_baseline(df):
-    """
-    Run baseline Ordinary Least Squares (OLS) regression.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Preprocessed dataframe
-    
-    Returns
-    -------
-    dict
-        Dictionary containing OLS results
-    """
     print("\n" + "="*70)
     print("BASELINE OLS REGRESSION")
     print("="*70)
@@ -168,14 +123,6 @@ def run_ols_baseline(df):
 
 
 def compute_correlation_matrix(df):
-    """
-    Compute and save correlation matrix for numeric features.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Preprocessed dataframe
-    """
     print("\n" + "="*70)
     print("CORRELATION MATRIX")
     print("="*70)
@@ -195,18 +142,6 @@ def compute_correlation_matrix(df):
 
 
 def run_bayesian_model(df, model_name, formula='baseline'):
-    """
-    Run complete Bayesian analysis for a single model.
-    
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Preprocessed dataframe
-    model_name : str
-        Name of the model (e.g., 'gibbs_result', 'log_fit', 'interaction')
-    formula : str
-        Model formula: 'baseline', 'log', or 'interaction'
-    """
     print("\n" + "="*70)
     print(f"BAYESIAN MODEL: {model_name.upper()}")
     print("="*70)
@@ -303,9 +238,6 @@ def run_bayesian_model(df, model_name, formula='baseline'):
 
 
 def main():
-    """
-    Main execution function for the complete Bayesian analysis pipeline.
-    """
     print("\n" + "="*70)
     print("BAYESIAN MCMC INSURANCE REGRESSION")
     print("Complete Analysis Pipeline")

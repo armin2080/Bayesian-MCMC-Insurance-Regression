@@ -1,14 +1,7 @@
-"""
-Quick Test Script for Python Implementation
-
-This script runs a quick test to verify all modules are working correctly.
-"""
-
 import sys
 import numpy as np
 
 def test_imports():
-    """Test if all required modules can be imported."""
     print("Testing imports...")
     try:
         import pandas
@@ -32,7 +25,6 @@ def test_imports():
 
 
 def test_custom_modules():
-    """Test if custom modules can be imported."""
     print("\nTesting custom modules...")
     try:
         from data_preprocessing import preprocess_data
@@ -54,7 +46,6 @@ def test_custom_modules():
 
 
 def test_gibbs_sampler():
-    """Test the Gibbs sampler with synthetic data."""
     print("\nTesting Gibbs sampler...")
     try:
         from gibbs_sampling import gibbs_lm
@@ -86,7 +77,6 @@ def test_gibbs_sampler():
 
 
 def test_data_file():
-    """Test if the data file exists."""
     print("\nTesting data file...")
     from pathlib import Path
     
@@ -101,7 +91,6 @@ def test_data_file():
 
 
 def main():
-    """Run all tests."""
     print("="*70)
     print("PYTHON IMPLEMENTATION - QUICK TEST")
     print("="*70)

@@ -1,16 +1,3 @@
-"""
-Posterior Inference and Predictive Checks
-
-This module provides functions for:
-1. Posterior Predictive Distribution
-2. Posterior Predictive Checks (PPC)
-   - Scatter plots comparing observed vs predicted
-   - Density overlays
-   - Residual plots
-
-These tools help assess model fit and predictive performance.
-"""
-
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -18,27 +5,6 @@ import seaborn as sns
 
 
 def posterior_predictive(beta_list, sigma2_list, X_new):
-    """
-    Generate posterior predictive draws for new or observed data.
-    
-    For each posterior sample of (beta, sigma^2), generates a prediction:
-    y_rep ~ N(X_new * beta, sigma^2)
-    
-    Parameters
-    ----------
-    beta_list : list of np.ndarray
-        List of beta samples from each chain (each of shape [n_iter, p])
-    sigma2_list : list of np.ndarray
-        List of sigma^2 samples from each chain (each of shape [n_iter])
-    X_new : np.ndarray
-        Design matrix for predictions (n_new x p)
-    
-    Returns
-    -------
-    np.ndarray
-        Matrix of posterior predictive draws (n_draws x n_new)
-        where n_draws is the total number of posterior samples
-    """
     # Combine chains into a single posterior sample
     beta_all = np.vstack(beta_list)
     sigma2_all = np.concatenate(sigma2_list)
@@ -59,24 +25,7 @@ def posterior_predictive(beta_list, sigma2_list, X_new):
     return y_rep
 
 
-def ppc_plot(y_obs, y_rep, model_name, plot_dir='../../plots'):
-    """
-    Create posterior predictive check scatter plot.
-    
-    Compares observed responses with posterior predictive means.
-    Points close to the diagonal line indicate good model fit.
-    
-    Parameters
-    ----------
-    y_obs : np.ndarray
-        Observed response vector
-    y_rep : np.ndarray
-        Posterior predictive matrix from posterior_predictive()
-    model_name : str
-        Name of the model (used for folder naming)
-    plot_dir : str
-        Base directory for saving plots
-    """
+def ppc_plot(y_obs, y_rep, model_name, plot_dir='../outputs'):
     # Create output directory
     ppc_dir = Path(plot_dir) / model_name / 'PPC'
     ppc_dir.mkdir(parents=True, exist_ok=True)
@@ -108,26 +57,7 @@ def ppc_plot(y_obs, y_rep, model_name, plot_dir='../../plots'):
     print(f"Saved: {filename}")
 
 
-def PPC_density_overlay(y_obs, y_rep, model_name, n_samples=200, plot_dir='../../plots'):
-    """
-    Create density overlay plot for posterior predictive checks.
-    
-    Overlays the density of observed data with densities from replicated datasets.
-    If the model fits well, the observed density should be similar to the replicated densities.
-    
-    Parameters
-    ----------
-    y_obs : np.ndarray
-        Observed response vector
-    y_rep : np.ndarray
-        Posterior predictive matrix from posterior_predictive()
-    model_name : str
-        Name of the model (used for folder naming)
-    n_samples : int
-        Number of replicated datasets to sample for visualization (default: 200)
-    plot_dir : str
-        Base directory for saving plots
-    """
+def PPC_density_overlay(y_obs, y_rep, model_name, n_samples=200, plot_dir='../outputs'):
     # Create output directory
     ppc_dir = Path(plot_dir) / model_name / 'PPC'
     ppc_dir.mkdir(parents=True, exist_ok=True)
@@ -173,24 +103,7 @@ def PPC_density_overlay(y_obs, y_rep, model_name, n_samples=200, plot_dir='../..
     print(f"Saved: {filename}")
 
 
-def ppc_residual_plot(y_obs, y_rep, model_name, plot_dir='../../plots'):
-    """
-    Create residual plot for posterior predictive checks.
-    
-    Plots residuals (observed - predicted) against posterior mean predictions.
-    Good fit shows randomly scattered residuals around zero with no patterns.
-    
-    Parameters
-    ----------
-    y_obs : np.ndarray
-        Observed response vector
-    y_rep : np.ndarray
-        Posterior predictive matrix from posterior_predictive()
-    model_name : str
-        Name of the model (used for folder naming)
-    plot_dir : str
-        Base directory for saving plots
-    """
+def ppc_residual_plot(y_obs, y_rep, model_name, plot_dir='../outputs'):
     # Create output directory
     ppc_dir = Path(plot_dir) / model_name / 'PPC'
     ppc_dir.mkdir(parents=True, exist_ok=True)
