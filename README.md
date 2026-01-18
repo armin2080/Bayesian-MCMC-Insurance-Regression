@@ -76,20 +76,21 @@ Rscript Model_Setup.R
 
 ### Phase 2: Prior Specification
 **Steps:**
-1. Define weakly informative priors for regression coefficients
+1. Define extremely weak priors for regression coefficients
 2. Specify prior for error variance
-3. Justify prior choices based on standardized data scale
+3. Justify prior choices to ensure data-driven inference
 
 **Priors Selected:**
-- **Coefficients (β)**: β ~ N(0, 100·I)
+- **Coefficients (β)**: β ~ N(0, B₀⁻¹) where B₀ = 0.0001·I (precision matrix)
   - Mean of 0 assumes no prior directional bias
-  - Variance of 100 allows ±20 on standardized scale (weakly informative)
+  - Precision 10⁻⁴ equivalent to variance 10,000·I (extremely weak, nearly flat prior)
+  - Allows data to fully dominate the posterior
   
-- **Error Variance (σ²)**: σ² ~ Inverse-Gamma(2, 2)
-  - Shape α=2: Allows for a range of variance values
-  - Scale β=2: Mean = β/(α-1) = 2, accommodates standardized residuals
+- **Error Variance (σ²)**: σ² ~ Inverse-Gamma(0.01, 0.01)
+  - Shape α=0.01: Extremely weak, nearly uniform prior
+  - Scale d=0.01: Ensures proper prior while being maximally non-informative
 
-**Justification**: With n=1,337 observations and weakly informative priors, the likelihood dominates the posterior, ensuring data-driven inference.
+**Justification**: With n=1,337 observations and extremely weak priors (precision=10⁻⁴), the likelihood completely dominates the posterior. This ensures purely data-driven inference, matching the R implementation approach.
 
 ---
 
