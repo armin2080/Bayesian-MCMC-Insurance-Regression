@@ -163,29 +163,6 @@ acf_plot_sigma2 <- function(sigma2_list, model_name, lag_max = 50, ylim_zoom = 0
 
 
 #------------------------------------------------------
-# core ESS computation using the initial positive sequence
-#------------------------------------------------------
-# Args:
-#   x       : numeric vector of MCMC samples
-#   max_lag : maximum lag for autocorrelation
-# Returns:
-#   effective sample size (ESS)
-#------------------------------------------------------
-
-effective_sample_size <- function(x, max_lag = 100) {
-  
-  # compute autocorrelation values
-  acf_vals <- acf(x, lag.max = max_lag, plot = FALSE)$acf[-1]
-  
-  # Initial positive sequence 
-  positive_acf <- acf_vals[acf_vals > 0]
-  
-  ess <- length(x) / (1 + 2 * sum(positive_acf))
-  return(ess)
-}
-
-
-#------------------------------------------------------
 # ESS of regression coefficients (beta)
 #------------------------------------------------------
 # Args:
@@ -198,67 +175,123 @@ effective_sample_size <- function(x, max_lag = 100) {
 
 ess_beta_table <- function(beta_list, x, model_name) {
   
+  if (!requireNamespace("coda", quietly = TRUE)) {
+    stop("Package 'coda' not installed. Run: install.packages('coda')")
+  }
+  
   output_dir <- file.path("r", "outputs", model_name, "ESS_tables")
-  if (!dir.exists(output_dir))
-    dir.create(output_dir, recursive = TRUE)
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   
-  # combine all chains into one matrix
-  beta_all <- do.call(rbind, beta_list)
+  # convert each chain matrix to mcmc, then to mcmc.list
+  mlist <- coda::mcmc.list(lapply(beta_list, coda::mcmc))
   
-  # compute ESS for each coefficient
-  ess_vals <- apply(beta_all, 2, effective_sample_size)
+  ess_vals <- coda::effectiveSize(mlist)  # named vector by column
+  Ntot <- nrow(beta_list[[1]]) * length(beta_list)
+  ess_vals <- pmin(as.numeric(ess_vals), Ntot)
+  
   
   ess_table <- data.frame(
     Parameter = colnames(x),
-    ESS = round(ess_vals, 1)
+    ESS = round(as.numeric(ess_vals), 1)
   )
   
-  # save ESS table
   output_file <- file.path(output_dir, "ESS_beta.txt")
-  write.table(
-    ess_table,
-    file = output_file,
-    row.names = FALSE,
-    col.names = TRUE,
-    quote = FALSE
-  )
-  
-  message("ESS (beta) saved to: ", output_file)
-  return(ess_table)
+  write.table(ess_table, file = output_file, row.names = FALSE, quote = FALSE)
+
+  ess_table
 }
+
 
 
 #------------------------------------------------------
 # ESS table for error variance (sigma^2)
 #------------------------------------------------------
 # Args:
-#   sigma2_list : list of MCMC chains, each a matrix (iterations * p)
+#   sigma2_list : list of MCMC chains, each a numeric vector (iterations)
 #   model_name  : character string used to name output
 # Returns:
 #   Data frame containing ESS for sigma^2
 #------------------------------------------------------
 
 ess_sigma2_table <- function(sigma2_list, model_name) {
+  
+  if (!requireNamespace("coda", quietly = TRUE)) {
+    stop("Package 'coda' not installed. Run: install.packages('coda')")
+  }
+  
   output_dir <- file.path("r", "outputs", model_name, "ESS_tables")
-  if (!dir.exists(output_dir))
-    dir.create(output_dir, recursive = TRUE)
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   
-  ess_vals <-round(effective_sample_size(unlist(sigma2_list)), 1)
+  mlist <- coda::mcmc.list(lapply(sigma2_list, coda::mcmc))
+  ess_val <- as.numeric(coda::effectiveSize(mlist))
+  Ntot <- length(sigma2_list[[1]]) * length(sigma2_list)
+  ess_val <- min(ess_val, Ntot)
   
-  ess_table <- data.frame(
-    Parameter = "Sigma2",
-    ESS = ess_vals
-  )
+  
+  ess_table <- data.frame(Parameter = "Sigma2", ESS = round(ess_val, 1))
   
   output_file <- file.path(output_dir, "ESS_sigma2.txt")
-  write.table(
-    ess_table,
-    file = output_file,
-    row.names = FALSE,
-    col.names = TRUE,
-    quote = FALSE
+  write.table(ess_table, file = output_file, row.names = FALSE, quote = FALSE)
+  
+  message("ESS (sigma2) saved to: ", output_file)
+  ess_table
+}
+
+
+
+# ------------------------------------------------------
+# (4.3) R-hat (Gelman-Rubin) diagnostic
+# ------------------------------------------------------
+
+rhat_scalar <- function(chains) {
+  m <- length(chains)
+  n <- length(chains[[1]])
+  if (m < 2) stop("R-hat needs at least 2 chains.")
+  
+  chain_means <- sapply(chains, mean)
+  chain_vars  <- sapply(chains, var)
+  
+  W <- mean(chain_vars)
+  B <- n * var(chain_means)
+  
+  var_plus <- (n - 1) / n * W + B / n
+  sqrt(var_plus / W)
+}
+
+rhat_beta_table <- function(beta_list, x, model_name) {
+  output_dir <- file.path("r", "outputs", model_name, "Rhat_tables")
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  p <- ncol(beta_list[[1]])
+  rhats <- numeric(p)
+  
+  for (j in 1:p) {
+    chains_j <- lapply(beta_list, function(mat) mat[, j])
+    rhats[j] <- rhat_scalar(chains_j)
+  }
+  
+  tab <- data.frame(
+    Parameter = colnames(x),
+    Rhat = round(rhats, 4)
   )
   
-  message("ESS (sigma^2) saved to: ", output_file)
-  return(ess_table)
+  out <- file.path(output_dir, "Rhat_beta.txt")
+  write.table(tab, out, row.names = FALSE, quote = FALSE)
+  tab
+}
+
+rhat_sigma2_table <- function(sigma2_list, model_name) {
+  output_dir <- file.path("r", "outputs", model_name, "Rhat_tables")
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  rhat <- rhat_scalar(sigma2_list)
+  
+  tab <- data.frame(
+    Parameter = "Sigma2",
+    Rhat = round(rhat, 4)
+  )
+  
+  out <- file.path(output_dir, "Rhat_sigma2.txt")
+  write.table(tab, out, row.names = FALSE, quote = FALSE)
+  tab
 }

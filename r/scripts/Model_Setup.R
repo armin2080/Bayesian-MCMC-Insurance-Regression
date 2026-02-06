@@ -69,6 +69,11 @@ acf_plot_sigma2(sigma2_list, "gibbs_result")
 ess_beta_table(beta_list, x, "gibbs_result")
 ess_sigma2_table(sigma2_list, "gibbs_result")
 
+# R-hat
+rhat_beta_table(beta_list, x, "gibbs_result")
+rhat_sigma2_table(sigma2_list, "gibbs_result")
+
+
 
 #----------------------------------------------
 # Run Posterior Predictive
@@ -146,6 +151,11 @@ acf_plot_sigma2(sigma2_list, "log_fit")
 ess_beta_table(beta_list, x, "log_fit")
 ess_sigma2_table(sigma2_list, "log_fit")
 
+# R-hat
+rhat_beta_table(beta_list, x, "log_fit")
+rhat_sigma2_table(sigma2_list, "log_fit")
+
+
 
 #----------------------------------------------
 # Run Posterior Predictive
@@ -180,8 +190,9 @@ x_int <- model.matrix(
   data = expenses_clean
 )
 
-n <- nrow(x)
-p <- ncol(x)
+n <- nrow(x_int)
+p <- ncol(x_int)
+
 
 #------------------------------------
 # Run Gibbs Sampler & Trace Plot
@@ -224,6 +235,11 @@ acf_plot_sigma2(sigma2_list, "interaction")
 ess_beta_table(beta_list, x_int, "interaction")
 ess_sigma2_table(sigma2_list, "interaction")
 
+# R-hat
+rhat_beta_table(beta_list, x_int, "interaction")
+rhat_sigma2_table(sigma2_list, "interaction")
+
+
 
 #----------------------------------------------
 # Run Posterior Predictive
@@ -244,4 +260,49 @@ ppc_plot(y_log, y_rep, "interaction")
 PPC_density_overlay(y_log, y_rep, "interaction")
 ppc_residual_plot(y_log, y_rep, "interaction")
 
+
+
+# ==================================================
+# Prior Sensitivity (run on best model: interaction)
+# ==================================================
+
+p <- ncol(x_int)
+
+priors <- list(
+  diffuse = list(B0 = diag(1e-4, p), a0 = 0.01, d0 = 0.01),
+  mild    = list(B0 = diag(1e-2, p), a0 = 2,    d0 = 1),
+  strong  = list(B0 = diag(1e-1, p), a0 = 2,    d0 = 1)
+)
+
+prior_summaries <- lapply(names(priors), function(pr_name) {
+  pr <- priors[[pr_name]]
+  fit <- gibbs_lm(
+    y = y_log,
+    X = x_int,
+    n_iter = 10000,
+    warmup = 2000,
+    n_chains = 4,
+    B0 = pr$B0,
+    a0 = pr$a0,
+    d0 = pr$d0
+  )
+  beta_list_pr <- lapply(fit, function(ch) ch$beta)
+  
+  summ <- beta_summary_stats(beta_list_pr)
+  out <- data.frame(
+    Prior = pr_name,
+    Parameter = colnames(x_int),
+    Mean = summ[, "Mean"],
+    SD = summ[, "SD"],
+    Q2.5 = summ[, "2.5%"],
+    Q97.5 = summ[, "97.5%"]
+  )
+  out
+})
+
+prior_summaries <- do.call(rbind, prior_summaries)
+
+outdir <- file.path("r", "outputs", "prior_sensitivity")
+dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
+write.csv(prior_summaries, file.path(outdir, "prior_sensitivity_beta.csv"), row.names = FALSE)
 
