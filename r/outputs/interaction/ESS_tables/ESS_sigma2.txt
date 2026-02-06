@@ -1,2 +1,2 @@
 Parameter ESS
-Sigma2 20113.8
+Sigma2 31224.9
