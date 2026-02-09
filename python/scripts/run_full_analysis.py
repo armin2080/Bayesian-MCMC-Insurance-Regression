@@ -12,12 +12,15 @@ from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 import sys
 
-# Import custom modules
-from gibbs_sampling import gibbs_lm
-from model_setup import setup_bayesian_model
-from posterior_inference import compute_rhat, compute_ess, compute_posterior_summaries
-from convergence_detection import beta_trace_plot, sigma2_trace_plot, acf_plot
-from residual_diagnostics import compute_residuals, plot_residual_diagnostics
+# Import custom modules (match actual repo functions)
+from data_preprocessing import preprocess_data
+from model_setup import create_design_matrix, run_ols_baseline
+from gibbs_sampling import gibbs_lm, beta_trace_plot, sigma2_trace_plot
+from convergence_detection import acf_plot_beta, acf_plot_sigma2
+from posterior_inference import posterior_predictive, ppc_plot, PPC_density_overlay, ppc_residual_plot
+
+# Manual diagnostics (new file)
+from mcmc_diagnostics import rhat, ess_geyer
 
 # Set up plotting
 sns.set_style("whitegrid")
@@ -81,13 +84,13 @@ print("\n[3/7] Computing convergence diagnostics...")
 output_dir = Path('../outputs/baseline_model')
 output_dir.mkdir(parents=True, exist_ok=True)
 
-# Compute R-hat
+# Compute R-hat using manual implementation
 rhat_beta = []
 for j in range(X_with_intercept.shape[1]):
-    chains_j = [chain[:, j] for chain in beta_chains]
-    rhat_beta.append(compute_rhat(chains_j))
+    chains_j = np.array([chain[:, j] for chain in beta_chains])  # shape: (n_chains, n_samples)
+    rhat_beta.append(rhat(chains_j))
 
-rhat_sigma2 = compute_rhat(sigma2_chains)
+rhat_sigma2 = rhat(np.array(sigma2_chains))
 
 print(f"   R-hat (beta): {[f'{r:.4f}' for r in rhat_beta]}")
 print(f"   R-hat (sigma2): {rhat_sigma2:.4f}")
@@ -102,9 +105,8 @@ ess_dir.mkdir(exist_ok=True)
 
 ess_beta = []
 for j in range(X_with_intercept.shape[1]):
-    chains_j = [chain[:, j] for chain in beta_chains]
-    combined = np.concatenate(chains_j)
-    ess_beta.append(compute_ess(combined))
+    chains_j = np.array([chain[:, j] for chain in beta_chains])  # shape: (n_chains, n_samples)
+    ess_beta.append(ess_geyer(chains_j))
 
 # Save ESS table
 ess_df = pd.DataFrame({
@@ -123,26 +125,30 @@ print("\n[4/7] Computing posterior summaries...")
 beta_combined = np.vstack(beta_chains)
 sigma2_combined = np.concatenate(sigma2_chains)
 
-# Compute summaries
-summaries = compute_posterior_summaries(beta_combined)
+# Compute summaries manually
+mean_beta = np.mean(beta_combined, axis=0)
+median_beta = np.median(beta_combined, axis=0)
+sd_beta = np.std(beta_combined, axis=0, ddof=1)
+ci_lower = np.percentile(beta_combined, 2.5, axis=0)
+ci_upper = np.percentile(beta_combined, 97.5, axis=0)
 
 print("\n   Posterior Estimates:")
 print("   " + "-"*70)
 print(f"   {'Parameter':<20} {'Mean':>10} {'Median':>10} {'SD':>10}")
 print("   " + "-"*70)
 for i, name in enumerate(feature_names):
-    print(f"   {name:<20} {summaries['mean'][i]:>10.4f} "
-          f"{summaries['median'][i]:>10.4f} {summaries['sd'][i]:>10.4f}")
+    print(f"   {name:<20} {mean_beta[i]:>10.4f} "
+          f"{median_beta[i]:>10.4f} {sd_beta[i]:>10.4f}")
 print("   " + "-"*70)
 
 # Save posterior estimates
 posterior_df = pd.DataFrame({
     'Parameter': feature_names,
-    'Mean': summaries['mean'],
-    'Median': summaries['median'],
-    'SD': summaries['sd'],
-    'CI_lower': summaries['ci_lower'],
-    'CI_upper': summaries['ci_upper']
+    'Mean': mean_beta,
+    'Median': median_beta,
+    'SD': sd_beta,
+    'CI_lower': ci_lower,
+    'CI_upper': ci_upper
 })
 posterior_df.to_csv(output_dir / 'posterior_estimates.csv', index=False)
 
@@ -151,8 +157,8 @@ posterior_df.to_csv(output_dir / 'posterior_estimates.csv', index=False)
 # ============================================================================
 print("\n[5/7] Generating trace plots...")
 
-beta_trace_plot(beta_chains, feature_names=feature_names, 
-                model_name='baseline_model', plot_dir='../outputs')
+# Note: beta_trace_plot expects list of arrays, not feature_names parameter
+beta_trace_plot(beta_chains, model_name='baseline_model', plot_dir='../outputs')
 sigma2_trace_plot(sigma2_chains, model_name='baseline_model', plot_dir='../outputs')
 
 print("   ✓ Trace plots saved")
@@ -163,17 +169,27 @@ print("   ✓ Trace plots saved")
 print("\n[6/7] Computing residual diagnostics...")
 
 # Use posterior mean for predictions
-beta_mean = summaries['mean']
-y_pred = X_with_intercept @ beta_mean
-residuals = compute_residuals(y, y_pred)
+y_pred = X_with_intercept @ mean_beta
+residuals = y - y_pred
 
-# Plot residuals
-plot_residual_diagnostics(
-    residuals=residuals,
-    y_pred=y_pred,
-    y_true=y,
-    output_path='../outputs/baseline_model/residual_diagnostics.png'
-)
+# Simple residual plot
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+# Residuals vs fitted
+axes[0].scatter(y_pred, residuals, alpha=0.5)
+axes[0].axhline(y=0, color='r', linestyle='--')
+axes[0].set_xlabel('Fitted values')
+axes[0].set_ylabel('Residuals')
+axes[0].set_title('Residuals vs Fitted')
+
+# Q-Q plot
+from scipy import stats as sp_stats
+sp_stats.probplot(residuals, dist="norm", plot=axes[1])
+axes[1].set_title('Normal Q-Q Plot')
+
+plt.tight_layout()
+plt.savefig(output_dir / 'residual_diagnostics.png', dpi=300, bbox_inches='tight')
+plt.close()
 
 print("   ✓ Residual diagnostics saved")
 
@@ -230,7 +246,7 @@ print(f"\nResults saved to: {output_dir.absolute()}")
 print("\nKey findings:")
 print(f"  - All chains converged (R-hat < 1.1): {converged}")
 print(f"  - Effective sample sizes: {int(np.mean(ess_beta)):.0f} (average)")
-print(f"  - Strongest predictor: {feature_names[np.argmax(np.abs(summaries['mean']))]} "
-      f"(β = {summaries['mean'][np.argmax(np.abs(summaries['mean']))]:3f})")
+print(f"  - Strongest predictor: {feature_names[np.argmax(np.abs(mean_beta))]} "
+      f"(β = {mean_beta[np.argmax(np.abs(mean_beta))]:.3f})")
 print(f"  - Model R²: {1 - np.var(residuals)/np.var(y):.4f}")
 print("\n" + "="*80)

@@ -5,6 +5,9 @@ import pandas as pd
 from scipy import stats
 import arviz as az
 
+# Import manual MCMC diagnostics (demonstrating understanding of mechanics)
+from mcmc_diagnostics import rhat, ess_geyer
+
 
 def compare_algorithms(gibbs_results, mh_results, param_names=None, output_dir='../outputs/algorithm_comparison'):
     """
@@ -60,13 +63,13 @@ def compare_algorithms(gibbs_results, mh_results, param_names=None, output_dir='
     ess_comparison = []
     
     for j in range(n_params):
-        # Gibbs ESS
+        # Gibbs ESS - using manual implementation
         gibbs_param = np.array([chain[:, j] for chain in gibbs_beta])
-        gibbs_ess = az.ess(gibbs_param)
+        gibbs_ess = ess_geyer(gibbs_param)
         
-        # MH ESS
+        # MH ESS - using manual implementation
         mh_param = np.array([chain[:, j] for chain in mh_beta])
-        mh_ess = az.ess(mh_param)
+        mh_ess = ess_geyer(mh_param)
         
         ess_comparison.append({
             'Parameter': param_names[j],
@@ -78,8 +81,8 @@ def compare_algorithms(gibbs_results, mh_results, param_names=None, output_dir='
     # Add sigma2
     gibbs_sigma2_arr = np.array(gibbs_sigma2)
     mh_sigma2_arr = np.array(mh_sigma2)
-    gibbs_ess_sigma = az.ess(gibbs_sigma2_arr)
-    mh_ess_sigma = az.ess(mh_sigma2_arr)
+    gibbs_ess_sigma = ess_geyer(gibbs_sigma2_arr)
+    mh_ess_sigma = ess_geyer(mh_sigma2_arr)
     
     ess_comparison.append({
         'Parameter': 'σ²',
@@ -141,8 +144,9 @@ def compare_algorithms(gibbs_results, mh_results, param_names=None, output_dir='
         gibbs_param = np.array([chain[:, j] for chain in gibbs_beta])
         mh_param = np.array([chain[:, j] for chain in mh_beta])
         
-        gibbs_rhat = az.rhat(gibbs_param)
-        mh_rhat = az.rhat(mh_param)
+        # Using manual R-hat implementation
+        gibbs_rhat = rhat(gibbs_param)
+        mh_rhat = rhat(mh_param)
         
         rhat_comparison.append({
             'Parameter': param_names[j],
@@ -152,8 +156,8 @@ def compare_algorithms(gibbs_results, mh_results, param_names=None, output_dir='
         })
     
     # Add sigma2
-    gibbs_rhat_sigma = az.rhat(gibbs_sigma2_arr)
-    mh_rhat_sigma = az.rhat(mh_sigma2_arr)
+    gibbs_rhat_sigma = rhat(gibbs_sigma2_arr)
+    mh_rhat_sigma = rhat(mh_sigma2_arr)
     
     rhat_comparison.append({
         'Parameter': 'σ²',

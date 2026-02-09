@@ -50,75 +50,40 @@ def create_design_matrix(df, formula='baseline'):
 
 
 def run_ols_baseline(df):
+    """
+    Frequentist OLS baseline with correct intercept handling + standard errors.
+    Uses statsmodels for clean inference output (coef, se, t, p, CI).
+    """
     print("\n" + "="*70)
-    print("BASELINE OLS REGRESSION")
+    print("BASELINE OLS REGRESSION (FREQUENTIST)")
     print("="*70)
-    
-    # Prepare data
-    X, y, feature_names = create_design_matrix(df, formula='baseline')
-    
-    # Fit OLS
-    model = LinearRegression()
-    model.fit(X, y)
-    
-    # Predictions
-    y_pred = model.predict(X)
-    residuals = y - y_pred
-    
-    # Calculate statistics
-    n = len(y)
-    p = X.shape[1]
-    
-    # R-squared
-    ss_res = np.sum(residuals**2)
-    ss_tot = np.sum((y - np.mean(y))**2)
-    r_squared = 1 - (ss_res / ss_tot)
-    adj_r_squared = 1 - (1 - r_squared) * (n - 1) / (n - p)
-    
-    # Standard errors
-    mse = ss_res / (n - p)
-    var_beta = mse * np.linalg.inv(X.T @ X)
-    se_beta = np.sqrt(np.diag(var_beta))
-    
-    # t-statistics and p-values
-    from scipy import stats
-    t_stats = model.coef_ / se_beta
-    p_values = 2 * (1 - stats.t.cdf(np.abs(t_stats), df=n-p))
-    
-    # Display results
-    print("\nCoefficients:")
-    results_df = pd.DataFrame({
-        'Feature': feature_names,
-        'Coefficient': model.coef_,
-        'Std. Error': se_beta,
-        't-statistic': t_stats,
-        'p-value': p_values
-    })
-    print(results_df.to_string(index=False))
-    
-    print(f"\nR-squared: {r_squared:.4f}")
-    print(f"Adjusted R-squared: {adj_r_squared:.4f}")
-    print(f"Residual Standard Error: {np.sqrt(mse):.4f}")
-    
-    # Save to file
-    output_path = Path('../../r/outputs/ols_output.txt')
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'w') as f:
-        f.write("="*70 + "\n")
-        f.write("BASELINE OLS REGRESSION RESULTS\n")
-        f.write("="*70 + "\n\n")
-        f.write(results_df.to_string(index=False))
-        f.write(f"\n\nR-squared: {r_squared:.4f}\n")
-        f.write(f"Adjusted R-squared: {adj_r_squared:.4f}\n")
-        f.write(f"Residual Standard Error: {np.sqrt(mse):.4f}\n")
-    
-    print(f"\nResults saved to: {output_path}")
-    
+
+    import statsmodels.api as sm
+
+    # Your design matrix already includes intercept column (ones)
+    X, y, feature_names = create_design_matrix(df, formula="baseline")
+
+    # statsmodels OLS does NOT add an intercept unless you do sm.add_constant.
+    # Since your X already contains the intercept column, we use it as-is.
+    ols_model = sm.OLS(y, X).fit()
+
+    print("\nCoefficients (OLS):")
+    for name, coef, se, pval in zip(feature_names, ols_model.params, ols_model.bse, ols_model.pvalues):
+        print(f"{name:>12s}  coef={coef: .6f}  se={se: .6f}  p={pval: .4g}")
+
+    print(f"\nR^2 = {ols_model.rsquared:.4f}")
+    print(f"Adj R^2 = {ols_model.rsquared_adj:.4f}")
+
+    # Return a dict compatible with your pipeline
     return {
-        'model': model,
-        'coefficients': model.coef_,
-        'r_squared': r_squared,
-        'feature_names': feature_names
+        "params": ols_model.params,
+        "bse": ols_model.bse,
+        "tvalues": ols_model.tvalues,
+        "pvalues": ols_model.pvalues,
+        "rsquared": ols_model.rsquared,
+        "rsquared_adj": ols_model.rsquared_adj,
+        "resid": ols_model.resid,
+        "fittedvalues": ols_model.fittedvalues
     }
 
 

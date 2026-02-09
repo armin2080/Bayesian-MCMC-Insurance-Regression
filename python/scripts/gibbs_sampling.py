@@ -3,50 +3,99 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from scipy import stats
 import pandas as pd
+import time
 
 
-def gibbs_lm(y, X, n_iter=10000, warmup=2000, n_chains=3,
-             b0=None, B0=None, a0=0.01, d0=0.01, seed=123):
-    
-    n = len(y)
+def gibbs_lm(
+    y, X, n_iter=10000, warmup=2000, n_chains=3,
+    b0=None, B0=None, a0=0.01, d0=0.01, seed=123
+):
+    """
+    Conjugate Bayesian linear regression with Normal-Inverse-Gamma prior:
+
+      y | beta, sigma2 ~ N(X beta, sigma2 I)
+      beta | sigma2    ~ N(b0, sigma2 * (B0)^{-1})
+      sigma2           ~ Inv-Gamma(a0, d0)   [shape a0, scale d0]
+
+    Full conditionals:
+      beta | sigma2,y  ~ N(bn, sigma2 * (Bn)^{-1})
+      sigma2 | beta,y  ~ Inv-Gamma(an, dn)
+        dn = d0 + 0.5 * [ (y-Xb)'(y-Xb) + (b-b0)'B0(b-b0) ]
+    """
+
+    y = np.asarray(y).reshape(-1)
+    X = np.asarray(X)
+    n = y.shape[0]
     p = X.shape[1]
-    
+
     if b0 is None:
         b0 = np.zeros(p)
     if B0 is None:
-        B0 = np.eye(p) * 1e-4
-    
+        B0 = np.eye(p) * 1e-4  # weak prior precision
+
+    b0 = np.asarray(b0).reshape(-1)
+    B0 = np.asarray(B0)
+
     chain_results = []
+
+    # Precompute sufficient statistics
     XtX = X.T @ X
     Xty = X.T @ y
-    
+
+    # Posterior precision is constant across iterations
+    Bn = XtX + B0
+    bn = np.linalg.solve(Bn, Xty + B0 @ b0)
+
+    # Cholesky factor once (avoid explicit inverse)
+    # Bn = L L^T, L lower triangular
+    L = np.linalg.cholesky(Bn)
+
     for chain in range(n_chains):
-        np.random.seed(seed + chain)
+        rng = np.random.default_rng(seed + chain)
+
         beta_store = np.zeros((n_iter, p))
         sigma2_store = np.zeros(n_iter)
+
         beta_draw = np.zeros(p)
         sigma2_draw = 1.0
-        
+
+        t0 = time.time()
+
         for iter_idx in range(n_iter):
-            Bn = XtX + B0
-            bn = np.linalg.solve(Bn, Xty + B0 @ b0)
-            Bn_inv = np.linalg.inv(Bn)
-            beta_draw = np.random.multivariate_normal(mean=bn, cov=sigma2_draw * Bn_inv)
-            
+            # ---- beta | sigma2, y ----
+            z = rng.standard_normal(p)
+
+            # sample from N(bn, sigma2 * Bn^{-1})
+            # if L L^T = Bn, then Bn^{-1} = L^{-T} L^{-1}
+            # draw: bn + sqrt(sigma2) * L^{-T} L^{-1} z
+            v = np.linalg.solve(L, z)
+            w = np.linalg.solve(L.T, v)
+            beta_draw = bn + np.sqrt(sigma2_draw) * w
+
+            # ---- sigma2 | beta, y ----
             resid = y - X @ beta_draw
-            an = a0 + n / 2
-            dn = d0 + 0.5 * np.sum(resid**2)
-            sigma2_draw = 1.0 / np.random.gamma(shape=an, scale=1.0/dn)
-            
+            an = a0 + n / 2.0
+
+            # IMPORTANT: include beta prior quadratic term for sigma2-scaled beta prior
+            quad_prior = (beta_draw - b0).T @ B0 @ (beta_draw - b0)
+            dn = d0 + 0.5 * (resid @ resid + quad_prior)
+
+            # Inv-Gamma(shape=an, scale=dn): sample via 1/Gamma(an, scale=1/dn)
+            sigma2_draw = 1.0 / rng.gamma(shape=an, scale=1.0 / dn)
+
             beta_store[iter_idx, :] = beta_draw
             sigma2_store[iter_idx] = sigma2_draw
-        
+
+        elapsed = time.time() - t0
+
         chain_results.append({
-            'beta': beta_store[warmup:, :],
-            'sigma2': sigma2_store[warmup:]
+            "beta": beta_store[warmup:, :],
+            "sigma2": sigma2_store[warmup:],
+            "time_elapsed": elapsed
         })
-        print(f"Chain {chain + 1} completed.")
-    
+
+        print(f"Chain {chain + 1} completed. time_elapsed={elapsed:.3f}s")
+
     return chain_results
 
 

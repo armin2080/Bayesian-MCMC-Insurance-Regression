@@ -1,10 +1,7 @@
 Parameter	ESS
-beta_0	22148.3
-beta_1	23690.2
-beta_2	23190.0
-beta_3	22883.3
-beta_4	22428.5
-beta_5	21422.7
-beta_6	23350.3
-beta_7	21866.1
-beta_8	22896.3
+Intercept	120000.0
+age	120000.0
+sex	120000.0
+bmi	120000.0
+children	119294.62244937036
+smoker	119559.6017183496

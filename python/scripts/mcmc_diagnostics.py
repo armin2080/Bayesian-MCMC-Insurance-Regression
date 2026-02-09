@@ -1,0 +1,73 @@
+import numpy as np
+
+def rhat(chains_2d):
+    """
+    Gelman-Rubin R-hat for multiple chains.
+    chains_2d: array shape (m_chains, n_samples)
+    """
+    x = np.asarray(chains_2d)
+    if x.ndim != 2:
+        raise ValueError("rhat expects shape (m_chains, n_samples)")
+
+    m, n = x.shape
+    chain_means = x.mean(axis=1)
+    grand_mean = chain_means.mean()
+
+    # Between-chain variance
+    B = n * np.sum((chain_means - grand_mean) ** 2) / (m - 1)
+
+    # Within-chain variance
+    W = np.sum(x.var(axis=1, ddof=1)) / m
+
+    # Marginal posterior variance estimate
+    var_hat = ((n - 1) / n) * W + (1 / n) * B
+
+    return np.sqrt(var_hat / W)
+
+
+def autocovariance_1d(x):
+    """Unbiased autocovariance for lags 0..n-1 (O(n^2) naive but OK for moderate n)."""
+    x = np.asarray(x)
+    n = x.size
+    x = x - x.mean()
+    acov = np.empty(n)
+    for k in range(n):
+        acov[k] = np.dot(x[:n-k], x[k:]) / (n - k)
+    return acov
+
+
+def ess_geyer(chains_2d):
+    """
+    Effective sample size using Geyer's initial positive sequence (IPS) idea
+    on the *pooled* chains (split-chain ESS can be added if needed).
+
+    chains_2d: array (m_chains, n_samples)
+    """
+    x = np.asarray(chains_2d)
+    if x.ndim != 2:
+        raise ValueError("ess_geyer expects shape (m_chains, n_samples)")
+
+    m, n = x.shape
+    # pool chains by concatenation (common in simple projects)
+    pooled = x.reshape(-1)
+    N = pooled.size
+
+    acov = autocovariance_1d(pooled)
+    if acov[0] <= 0:
+        return np.nan
+
+    # autocorrelation
+    rho = acov / acov[0]
+
+    # IPS truncation: sum consecutive pairs until pair sum becomes negative
+    t = 1
+    s = 0.0
+    while (t + 1) < len(rho):
+        pair_sum = rho[t] + rho[t + 1]
+        if pair_sum < 0:
+            break
+        s += pair_sum
+        t += 2
+
+    tau = 1.0 + 2.0 * s
+    return N / tau
