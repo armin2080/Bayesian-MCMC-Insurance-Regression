@@ -30,6 +30,15 @@ def encode_binary_variables(df):
     return df_clean
 
 
+def drop_region(df):
+    """Drop region column as it's not used in the model to avoid hierarchical modeling."""
+    df_clean = df.copy()
+    if 'region' in df_clean.columns:
+        df_clean = df_clean.drop('region', axis=1)
+        print("  - Dropped 'region' column (not included in model)")
+    return df_clean
+
+
 def remove_duplicates(df):
     n_duplicates = df.duplicated().sum()
     print(f"\nNumber of duplicate rows: {n_duplicates}")
@@ -129,25 +138,29 @@ def preprocess_data(input_path='../../data/expenses.csv',
     print("  - sex: male=1, female=0")
     print("  - smoker: yes=1, no=0")
     
-    # (5) Remove duplicates
-    print("\n(5) Removing duplicates...")
+    # (5) Drop region column
+    print("\n(5) Dropping region column...")
+    df_clean = drop_region(df_clean)
+    
+    # (6) Remove duplicates
+    print("\n(6) Removing duplicates...")
     df_clean = remove_duplicates(df_clean)
     
-    # (6) Analyze outliers
-    print("\n(6) Analyzing outliers...")
+    # (7) Analyze outliers
+    print("\n(7) Analyzing outliers...")
     plot_boxplots(df_clean, output_dir=plot_dir)
     analyze_outliers(df_clean)
     
-    # (7) Normalize numeric features
-    print("\n(7) Normalizing numeric features...")
+    # (8) Normalize numeric features
+    print("\n(8) Normalizing numeric features...")
     df_clean = normalize_numeric_features(df_clean)
     
-    # (8) Display summary statistics
-    print("\n(8) Summary statistics:")
+    # (9) Display summary statistics
+    print("\n(9) Summary statistics:")
     print(df_clean.describe())
     
-    # (9) Save cleaned data
-    print(f"\n(9) Saving cleaned data to: {output_path}")
+    # (10) Save cleaned data
+    print(f"\n(10) Saving cleaned data to: {output_path}")
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     df_clean.to_csv(output_path, index=False)
     
