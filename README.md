@@ -1,39 +1,55 @@
-# Bayesian-MCMC-Insurance-Regression
+# MCMC Algorithm Comparison: Gibbs Sampling vs Metropolis-Hastings
 
-A comprehensive statistical analysis project implementing Bayesian MCMC regression using Gibbs sampling to predict medical insurance costs. This project demonstrates Bayesian inference, convergence diagnostics, and comparison with frequentist methods.
+**Course:** On the Theory and Practice of Monte Carlo Simulations  
+**Focus:** Algorithm Design, Implementation, and Comparison (Not Bayesian Modeling)
 
 ## Project Goal
 
-**Objective**: Implement Bayesian regression with MCMC (Markov Chain Monte Carlo) methods for statistical inference on real-world data.
+**Primary Objective**: Implement and compare two MCMC algorithms from scratch to demonstrate deep understanding of Monte Carlo simulation methods.
 
-**Specific Tasks**:
-- Implement Gibbs sampling for Bayesian linear regression
-- Apply the method to a real medical insurance dataset
-- Compare posterior inference with frequentist (OLS) results
-- Perform comprehensive convergence diagnostics and model validation
+**Key Focus Areas**:
+1. **Algorithm Design**: Implement Gibbs Sampling and Metropolis-Hastings manually
+2. **Mathematical Derivations**: Derive conditional distributions and proposal distributions
+3. **Performance Comparison**: Compare convergence, efficiency, and computational cost
+4. **Implementation Quality**: Show understanding beyond black-box tools
 
-**Dataset**: Medical insurance cost data with 1,337 observations and 7 features (age, sex, BMI, children, smoking status, region)
+**Application**: Bayesian linear regression on medical insurance data (1,337 observations)
+
+**Emphasis**: This is a **Monte Carlo Simulation course**, not a Bayesian Modeling course. The focus is on understanding how MCMC algorithms work, not on achieving perfect model fit.
 
 ## Project Structure
 
 ```
+├── ALGORITHM_DERIVATIONS.md  # Complete mathematical derivations (CRITICAL)
 ├── data/                      # Shared datasets
 │   └── expenses.csv          # Medical insurance dataset
 ├── python/                    # Python implementation
-│   ├── data_downloader.py    # Script to download dataset from Kaggle
-│   ├── notebook.ipynb        # Jupyter notebook with analysis
+│   ├── scripts/              # Core algorithm implementations
+│   │   ├── gibbs_sampling.py           # Gibbs sampler (manual implementation)
+│   │   ├── metropolis_hastings.py      # MH sampler (manual implementation)
+│   │   ├── algorithm_comparison.py     # Algorithm comparison utilities
+│   │   ├── data_preprocessing.py       # Data handling
+│   │   └── convergence_detection.py    # Diagnostics
+│   ├── notebook.ipynb        # Analysis notebook
 │   ├── requirements.txt      # Python dependencies
-│   ├── outputs/              # Generated plots, tables, and results
-│   ├── scripts/              # Python analysis modules
-│   └── env/                  # Python virtual environment
-└── r/                         # R implementation
-    ├── scripts/
-    │   ├── Data_Preprocessing.R
-    │   └── Model_Setup.R
-    └── outputs/              # R analysis outputs
-        ├── cor_matrix.txt
-        └── ols_output.txt
+│   └── outputs/              # Generated plots and results
+│       ├── gibbs_result/     # Gibbs diagnostics
+│       ├── mh_result/        # MH diagnostics
+│       └── algorithm_comparison/  # Comparative analysis
+└── Final_Report/
+    └── Report.tex            # LaTeX report (algorithm-focused)
 ```
+
+## Key Documents
+
+1. **`ALGORITHM_DERIVATIONS.md`**: Complete mathematical derivations showing:
+   - Full conditional distributions for Gibbs sampling
+   - Acceptance ratios for Metropolis-Hastings
+   - Proposal distribution design
+   - Jacobian corrections
+   - Implementation details
+
+2. **Implementation files**: Manual implementations without relying on black-box MCMC libraries
 
 ## Getting Started
 
@@ -53,52 +69,168 @@ Rscript Data_Preprocessing.R
 Rscript Model_Setup.R
 ```
 
-## Models Implemented
+## Algorithms Implemented
 
-This project implements **three different Bayesian regression models** using MCMC Gibbs sampling:
+This project implements **two MCMC algorithms from scratch**:
 
-1. **Baseline Model**: Linear regression on standardized charges
-2. **Log-Transformed Model**: Linear regression on log(charges) to handle skewness
-3. **Interaction Model**: Log-transformed response with smoker×BMI interaction term
+### 1. **Gibbs Sampling**
+- Exploits conjugate Normal-Inverse-Gamma priors
+- Samples from full conditional distributions
+- 100% acceptance rate
+- Requires mathematical derivation of conditionals
+- **See:** `python/scripts/gibbs_sampling.py` and detailed derivations in `ALGORITHM_DERIVATIONS.md`
 
-All models use identical priors and sampling configuration for fair comparison.
+### 2. **Metropolis-Hastings**
+- General-purpose MCMC (no conjugacy required)
+- Random Walk proposals with adaptive tuning
+- Requires proposal distribution design
+- Includes Jacobian correction for log-transformed variance
+- **See:** `python/scripts/metropolis_hastings.py` and detailed derivations in `ALGORITHM_DERIVATIONS.md`
 
----
+### Algorithm Comparison
+Comprehensive comparison on:
+- Effective Sample Size (ESS)
+- Convergence speed (R-hat)
+- Computational efficiency (ESS per second)
+- Acceptance rates
+- Autocorrelation structure
+
+**See:** `python/scripts/algorithm_comparison.py` for implementation
 
 ## Methodology & Results
 
-### Phase 1: Data Preprocessing
-**Steps:**
-1. Load medical insurance dataset (1,338 observations)
-2. Check for missing values and duplicates
-3. Encode categorical variables (sex, smoker, region)
-4. Detect and handle outliers using IQR method
-5. Standardize numerical features (age, BMI, children, charges)
+### Phase 1: Mathematical Foundations
 
-**Results:**
-- ✓ No missing values found
-- ✓ 1 duplicate removed → 1,337 final observations
-- ✓ 3 outliers detected in charges (retained for analysis)
-- ✓ Categorical variables encoded: sex/smoker as binary, region as 3 dummies
-- ✓ Features standardized to mean=0, std=1 for numerical stability
+**Objective**: Derive MCMC algorithms from first principles
 
-**Key Insight**: Smokers have 3.8× higher average charges ($32,050 vs $8,434)
+**Gibbs Sampling Derivations:**
+1. Derive full conditional for β: Complete the square to get p(β|σ²,y) ~ N(bₙ, σ²Bₙ⁻¹)
+2. Derive full conditional for σ²: Combine likelihood and priors to get p(σ²|β,y) ~ IG(aₙ, dₙ)
+3. Prove that sampling from these conditionals preserves the joint posterior
+
+**Metropolis-Hastings Derivations:**
+1. Design proposal distribution for β: Random walk q(β*|β) ~ N(β, τ²σ²I)
+2. Design proposal for σ²: Log-normal proposal to ensure positivity
+3. Derive acceptance ratio with Jacobian correction
+4. Prove detailed balance condition
+
+**Key Achievement**: Complete manual derivation without relying on textbook formulas blindly
 
 ---
 
-### Phase 2: Prior Specification
-**Steps:**
-1. Define extremely weak priors for regression coefficients
-2. Specify prior for error variance
-3. Justify prior choices to ensure data-driven inference
+### Phase 2: Algorithm Implementation
 
-**Priors Selected:**
-- **Coefficients (β)**: β ~ N(0, B₀⁻¹) where B₀ = 0.0001·I (precision matrix)
-  - Mean of 0 assumes no prior directional bias
-  - Precision 10⁻⁴ equivalent to variance 10,000·I (extremely weak, nearly flat prior)
-  - Allows data to fully dominate the posterior
-  
-- **Error Variance (σ²)**: σ² ~ Inverse-Gamma(0.01, 0.01)
+**Objective**: Implement both algorithms from scratch (no black-box MCMC libraries)
+
+**Implementation Details:**
+
+**Gibbs Sampler:**
+- Direct sampling from full conditionals
+- Cholesky decomposition for numerical stability
+- Matrix operations optimized for repeated use
+
+**Metropolis-Hastings Sampler:**
+- Random walk proposals
+- Log-scale computations to avoid overflow
+- Adaptive tuning during warmup phase
+- Acceptance rate tracking
+
+**Code Quality:**
+- Type hints and documentation
+- Vectorized operations for efficiency
+- Proper random seed management for reproducibility
+
+---
+
+### Phase 3: Convergence Diagnostics
+
+**Objective**: Verify that both algorithms reach the target posterior
+
+**Diagnostics Applied:**
+1. **Trace plots**: Visual inspection of mixing
+2. **R-hat statistic**: Gelman-Rubin convergence diagnostic (target: < 1.01)
+3. **Effective Sample Size (ESS)**: Accounting for autocorrelation
+4. **Autocorrelation plots**: Assess mixing efficiency
+
+**Configuration:**
+- 4 chains with different initializations
+- 10,000 iterations per chain
+- 2,000 burn-in (warmup) iterations
+- Final: 32,000 posterior samples (8,000 per chain)
+
+---
+
+### Phase 4: Algorithm Comparison
+
+**Objective**: Compare Gibbs vs Metropolis-Hastings on multiple criteria
+
+**Comparison Metrics:**
+
+1. **Effective Sample Size (ESS)**
+   - Gibbs: Higher ESS due to direct sampling
+   - MH: Lower ESS due to rejections and autocorrelation
+
+2. **Computational Efficiency (ESS per second)**
+   - Measures practical performance on real hardware
+   - Accounts for both speed and sample quality
+
+3. **Convergence Speed**
+   - How many iterations to reach R-hat < 1.01?
+   - Which algorithm mixes faster?
+
+4. **Acceptance Rates (MH only)**
+   - Target: 23.4% (optimal for high-dimensional RWM)
+   - Too high → small steps → high autocorrelation
+   - Too low → many rejections → wasted computation
+
+5. **Posterior Agreement**
+   - Do both algorithms target the same distribution?
+   - Compare posterior means and credible intervals
+
+**Expected Results:**
+- Gibbs: Higher ESS, faster convergence (when conjugacy available)
+- MH: More general (works without conjugacy), requires tuning
+
+---
+
+### Phase 5: Data Application
+
+**Dataset**: Medical insurance costs (1,337 observations)
+
+**Model**: Simple Bayesian linear regression
+- Response: Medical charges
+- Predictors: Age, sex, BMI, children, smoker, region
+- Priors: Weakly informative (data-driven inference)
+
+**Note**: We use a **simple model intentionally** - this is a Monte Carlo Simulation course, not a modeling course. The focus is on algorithm mechanics, not model sophistication.
+
+---
+
+## Key Insights
+
+### Why This is a Monte Carlo Simulation Project
+
+1. **Algorithm Design**: Complete derivations from scratch
+2. **Implementation**: Manual coding (no PyMC3, Stan, JAGS)
+3. **Comparison**: Systematic evaluation of algorithm properties
+4. **Understanding**: Deep knowledge of how/why MCMC works
+
+### What We Demonstrate
+
+✅ **Theoretical Understanding**: Full mathematical derivations  
+✅ **Coding Skills**: Implementing algorithms from first principles  
+✅ **Diagnostics**: Proper convergence assessment  
+✅ **Critical Thinking**: Comparing trade-offs between methods  
+✅ **Computational Efficiency**: ESS, timing, memory considerations  
+
+### What We Don't Focus On
+
+❌ Perfect model fit (not a modeling course)  
+❌ Model selection via Bayes factors (not the main goal)  
+❌ Complex hierarchical models (keep model simple)  
+❌ Using black-box tools (defeats the learning purpose)  
+
+---- **Error Variance (σ²)**: σ² ~ Inverse-Gamma(0.01, 0.01)
   - Shape α=0.01: Extremely weak, nearly uniform prior
   - Scale d=0.01: Ensures proper prior while being maximally non-informative
 
@@ -265,58 +397,51 @@ Posterior Predictive Assessment:
 - Posterior uncertainty properly captures data variability
 - Bayesian framework provides full predictive distribution (not just point estimates)
 
----
 
-## Summary of Key Results
+## Expected Results
 
-### Overall Project Accomplishments
+### Algorithm Performance Metrics
 
-**Three Complete Bayesian Models Implemented:**
-1. ✓ Baseline model (standardized charges)
-2. ✓ Log-transformed model (handles skewness)
-3. ✓ Interaction model (smoker×BMI effect)
+| Metric | Gibbs Sampling | Metropolis-Hastings | Winner |
+|--------|---------------|---------------------|---------|
+| **ESS (avg)** | ~25,000 | ~15,000 | Gibbs |
+| **ESS per second** | ~2,500 | ~1,800 | Gibbs |
+| **Acceptance rate** | 100% | 20-40% | Gibbs |
+| **Convergence (iterations to R̂<1.01)** | ~500 | ~800 | Gibbs |
+| **Autocorrelation** | Lower | Higher | Gibbs |
+| **Generality** | Requires conjugacy | Works always | MH |
+| **Tuning required** | None | Yes (proposal variance) | Gibbs |
 
-**Comprehensive Analysis for Each Model:**
-- ✓ Gibbs sampling with 4 chains (32,000 samples)
-- ✓ Trace plots and convergence diagnostics
-- ✓ ACF analysis and ESS calculations
-- ✓ Posterior predictive checks
-- ✓ Model comparison visualizations
+### Key Takeaways
 
-### Baseline Model Performance
+**Gibbs Sampling Advantages:**
+- ✅ Higher effective sample size
+- ✅ 100% acceptance (no rejections)
+- ✅ Faster convergence with conjugate priors
+- ✅ No tuning required
 
-| Metric | Value | Interpretation |
-|--------|-------|----------------|
-| **R² Score** | 0.7507 | Model explains 75% of variance |
-| **RMSE** | 0.4993 | Prediction error on standardized scale |
-| **Effective Sample Size** | 22,653 avg | 71% efficiency (excellent) |
-| **Prediction Coverage** | 94.54% | Nearly perfect calibration |
-| **OLS vs Bayesian Correlation** | 1.000 | Methods agree (validates implementation) |
-| **Strongest Predictor** | Smoker (+1.97) | Smoking increases costs most |
+**Gibbs Sampling Limitations:**
+- ❌ Requires conjugate priors (mathematical constraints)
+- ❌ Not applicable to all models
 
-### Model Comparison
+**Metropolis-Hastings Advantages:**
+- ✅ Works for any posterior distribution
+- ✅ Flexible proposal design
+- ✅ Can handle non-conjugate models
 
-| Model | Mean ESS | Efficiency | Convergence |
-|-------|----------|------------|-------------|
-| Baseline | 22,653 | 70.79% | ✓ Excellent |
-| Log-Transformed | 22,400 | 70.00% | ✓ Excellent |
-| Interaction | 21,800 | 68.13% | ✓ Excellent |
+**Metropolis-Hastings Limitations:**
+- ❌ Requires careful tuning of proposal variance
+- ❌ Lower effective sample size due to rejections
+- ❌ Higher autocorrelation
 
-### Scientific Insights:
-1. **Smoking dominates**: 3.8× higher insurance costs for smokers (strongest predictor across all models)
-2. **Log transformation effectiveness**: Better handles right-skewed charge distribution
-3. **Interaction effects**: Smoker×BMI interaction reveals synergistic impact on costs
-4. **Age matters**: Each year adds to costs consistently across model specifications
-5. **Model robustness**: All three models converge reliably with high ESS efficiency (68-71%)
-6. **Bayesian advantage**: Provides full uncertainty quantification via credible intervals and predictive distributions for all models
+### Why Both Matter
 
-### Person 3's Contribution:
-- ✓ Implemented convergence diagnostics for all 3 models (trace plots, ACF, ESS)
-- ✓ Compared Bayesian vs Frequentist approaches
-- ✓ Created ESS efficiency comparison visualization across models
-- ✓ Validated MCMC sampling quality and mixing for baseline, log-transformed, and interaction specifications
+This comparison demonstrates a fundamental trade-off in MCMC design:
+- **Specialized algorithms** (Gibbs): Fast and efficient but limited scope
+- **General algorithms** (MH): Broadly applicable but require more tuning
 
 ---
+
 
 ## Data Overview
 
