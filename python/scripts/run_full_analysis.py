@@ -1,0 +1,236 @@
+#!/usr/bin/env python
+"""
+Complete Analysis Runner
+Runs all analyses and generates results for the report
+"""
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from pathlib import Path
+from sklearn.preprocessing import StandardScaler
+import sys
+
+# Import custom modules
+from gibbs_sampling import gibbs_lm
+from model_setup import setup_bayesian_model
+from posterior_inference import compute_rhat, compute_ess, compute_posterior_summaries
+from convergence_detection import beta_trace_plot, sigma2_trace_plot, acf_plot
+from residual_diagnostics import compute_residuals, plot_residual_diagnostics
+
+# Set up plotting
+sns.set_style("whitegrid")
+plt.rcParams['figure.figsize'] = (12, 8)
+
+print("="*80)
+print("BAYESIAN MCMC INSURANCE REGRESSION - FULL ANALYSIS")
+print("="*80)
+
+# ============================================================================
+# 1. LOAD AND PREPARE DATA
+# ============================================================================
+print("\n[1/7] Loading and preparing data...")
+
+# Load cleaned data
+df = pd.read_csv('../../data/expenses_cleaned.csv')
+print(f"   Data shape: {df.shape}")
+print(f"   Columns: {list(df.columns)}")
+
+# Prepare design matrix and response
+y = df['charges'].values
+X = df.drop('charges', axis=1).values
+n, p = X.shape
+
+# Add intercept
+X_with_intercept = np.column_stack([np.ones(n), X])
+feature_names = ['Intercept'] + list(df.drop('charges', axis=1).columns)
+
+print(f"   n = {n} observations")
+print(f"   p = {p} predictors (+ intercept)")
+print(f"   Features: {feature_names}")
+
+# ============================================================================
+# 2. RUN GIBBS SAMPLING - BASELINE MODEL
+# ============================================================================
+print("\n[2/7] Running Gibbs sampling (baseline model)...")
+print("   Parameters: 50,000 iterations, 10,000 warmup, 3 chains")
+
+# Run Gibbs sampler
+chains_baseline = gibbs_lm(
+    y=y,
+    X=X_with_intercept,
+    n_iter=50000,
+    warmup=10000,
+    n_chains=3,
+    seed=42
+)
+
+# Extract samples
+beta_chains = [chain['beta'] for chain in chains_baseline]
+sigma2_chains = [chain['sigma2'] for chain in chains_baseline]
+
+print("   ✓ Sampling complete")
+
+# ============================================================================
+# 3. CONVERGENCE DIAGNOSTICS
+# ============================================================================
+print("\n[3/7] Computing convergence diagnostics...")
+
+# Create output directory
+output_dir = Path('../outputs/baseline_model')
+output_dir.mkdir(parents=True, exist_ok=True)
+
+# Compute R-hat
+rhat_beta = []
+for j in range(X_with_intercept.shape[1]):
+    chains_j = [chain[:, j] for chain in beta_chains]
+    rhat_beta.append(compute_rhat(chains_j))
+
+rhat_sigma2 = compute_rhat(sigma2_chains)
+
+print(f"   R-hat (beta): {[f'{r:.4f}' for r in rhat_beta]}")
+print(f"   R-hat (sigma2): {rhat_sigma2:.4f}")
+
+# Check convergence
+converged = all(r < 1.1 for r in rhat_beta) and rhat_sigma2 < 1.1
+print(f"   Convergence: {'✓ CONVERGED' if converged else '✗ NOT CONVERGED'}")
+
+# Compute ESS
+ess_dir = output_dir / 'ESS_tables'
+ess_dir.mkdir(exist_ok=True)
+
+ess_beta = []
+for j in range(X_with_intercept.shape[1]):
+    chains_j = [chain[:, j] for chain in beta_chains]
+    combined = np.concatenate(chains_j)
+    ess_beta.append(compute_ess(combined))
+
+# Save ESS table
+ess_df = pd.DataFrame({
+    'Parameter': feature_names,
+    'ESS': ess_beta
+})
+ess_df.to_csv(ess_dir / 'ESS_beta.txt', index=False, sep='\t')
+print(f"   ESS (beta): {[f'{e:.0f}' for e in ess_beta]}")
+
+# ============================================================================
+# 4. POSTERIOR SUMMARIES
+# ============================================================================
+print("\n[4/7] Computing posterior summaries...")
+
+# Combine chains
+beta_combined = np.vstack(beta_chains)
+sigma2_combined = np.concatenate(sigma2_chains)
+
+# Compute summaries
+summaries = compute_posterior_summaries(beta_combined)
+
+print("\n   Posterior Estimates:")
+print("   " + "-"*70)
+print(f"   {'Parameter':<20} {'Mean':>10} {'Median':>10} {'SD':>10}")
+print("   " + "-"*70)
+for i, name in enumerate(feature_names):
+    print(f"   {name:<20} {summaries['mean'][i]:>10.4f} "
+          f"{summaries['median'][i]:>10.4f} {summaries['sd'][i]:>10.4f}")
+print("   " + "-"*70)
+
+# Save posterior estimates
+posterior_df = pd.DataFrame({
+    'Parameter': feature_names,
+    'Mean': summaries['mean'],
+    'Median': summaries['median'],
+    'SD': summaries['sd'],
+    'CI_lower': summaries['ci_lower'],
+    'CI_upper': summaries['ci_upper']
+})
+posterior_df.to_csv(output_dir / 'posterior_estimates.csv', index=False)
+
+# ============================================================================
+# 5. GENERATE TRACE PLOTS
+# ============================================================================
+print("\n[5/7] Generating trace plots...")
+
+beta_trace_plot(beta_chains, feature_names=feature_names, 
+                model_name='baseline_model', plot_dir='../outputs')
+sigma2_trace_plot(sigma2_chains, model_name='baseline_model', plot_dir='../outputs')
+
+print("   ✓ Trace plots saved")
+
+# ============================================================================
+# 6. RESIDUAL DIAGNOSTICS
+# ============================================================================
+print("\n[6/7] Computing residual diagnostics...")
+
+# Use posterior mean for predictions
+beta_mean = summaries['mean']
+y_pred = X_with_intercept @ beta_mean
+residuals = compute_residuals(y, y_pred)
+
+# Plot residuals
+plot_residual_diagnostics(
+    residuals=residuals,
+    y_pred=y_pred,
+    y_true=y,
+    output_path='../outputs/baseline_model/residual_diagnostics.png'
+)
+
+print("   ✓ Residual diagnostics saved")
+
+# ============================================================================
+# 7. POSTERIOR PREDICTIVE CHECKS
+# ============================================================================
+print("\n[7/7] Posterior predictive checks...")
+
+# Sample from posterior predictive
+n_samples = 1000
+n_obs = len(y)
+y_rep = np.zeros((n_samples, n_obs))
+
+# Random sample from posterior
+idx = np.random.choice(len(beta_combined), size=n_samples, replace=False)
+
+for i, j in enumerate(idx):
+    beta_sample = beta_combined[j]
+    sigma2_sample = sigma2_combined[j]
+    y_rep[i] = X_with_intercept @ beta_sample + \
+               np.random.normal(0, np.sqrt(sigma2_sample), n_obs)
+
+# Compute test statistics
+T_obs = np.mean(y)
+T_rep = np.mean(y_rep, axis=1)
+p_value = np.mean(T_rep >= T_obs)
+
+print(f"   Posterior predictive p-value (mean): {p_value:.4f}")
+
+# Plot PPC
+ppc_dir = output_dir / 'PPC'
+ppc_dir.mkdir(exist_ok=True)
+
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.hist(T_rep, bins=50, alpha=0.7, edgecolor='black', label='Replicated data')
+ax.axvline(T_obs, color='red', linestyle='--', linewidth=2, label='Observed data')
+ax.set_xlabel('Mean charges', fontsize=12)
+ax.set_ylabel('Frequency', fontsize=12)
+ax.set_title('Posterior Predictive Check: Mean', fontsize=14)
+ax.legend()
+plt.tight_layout()
+plt.savefig(ppc_dir / 'ppc_mean.png', dpi=300, bbox_inches='tight')
+plt.close()
+
+print("   ✓ PPC plots saved")
+
+# ============================================================================
+# SUMMARY
+# ============================================================================
+print("\n" + "="*80)
+print("ANALYSIS COMPLETE")
+print("="*80)
+print(f"\nResults saved to: {output_dir.absolute()}")
+print("\nKey findings:")
+print(f"  - All chains converged (R-hat < 1.1): {converged}")
+print(f"  - Effective sample sizes: {int(np.mean(ess_beta)):.0f} (average)")
+print(f"  - Strongest predictor: {feature_names[np.argmax(np.abs(summaries['mean']))]} "
+      f"(β = {summaries['mean'][np.argmax(np.abs(summaries['mean']))]:3f})")
+print(f"  - Model R²: {1 - np.var(residuals)/np.var(y):.4f}")
+print("\n" + "="*80)
