@@ -199,7 +199,7 @@ Comprehensive comparison on:
 
 **Model**: Simple Bayesian linear regression
 - Response: Medical charges
-- Predictors: Age, sex, BMI, children, smoker, region
+- Predictors: Age, sex, BMI, children, smoker
 - Priors: Weakly informative (data-driven inference)
 
 **Note**: We use a **simple model intentionally** - this is a Monte Carlo Simulation course, not a modeling course. The focus is on algorithm mechanics, not model sophistication.
@@ -360,16 +360,12 @@ sex             -0.011   -0.011   0.028   [-0.065, +0.043]
 bmi             +0.171   +0.171   0.014   [+0.143, +0.200]  ✓
 children        +0.047   +0.047   0.014   [+0.020, +0.074]  ✓
 smoker          +1.970   +1.970   0.034   [+1.903, +2.037]  ✓ (strongest)
-region_northwest -0.029  -0.029   0.039   [-0.106, +0.048]
-region_southeast -0.085  -0.086   0.040   [-0.164, -0.007]  ✓
-region_southwest -0.079  -0.080   0.040   [-0.157, -0.001]  ✓
 ==================================================================
 ```
 
 **Interpretation**:
-- **Significant predictors** (CIs exclude 0): age, BMI, children, smoker, southeast, southwest
+- **Significant predictors** (CIs exclude 0): age, BMI, children, smoker
 - **Smoking** has the largest effect: +1.97 standardized units
-- **Regional effects**: Southeast and southwest have slightly lower costs vs. northeast (baseline)
 - **Sex** is not significant (CI includes 0)
 
 ---
@@ -458,8 +454,9 @@ This project uses the Medical Insurance Cost dataset from Kaggle, containing inf
 - **bmi**: Body Mass Index (15.96-53.13)
 - **children**: Number of children (0-5)
 - **smoker**: Smoking status (yes=1, no=0)
-- **region**: Geographic region (encoded as dummies: northwest, southeast, southwest)
 - **charges**: Medical insurance costs (target variable)
+
+**Note**: Region was excluded from the model to avoid hierarchical modeling complexity.
 
 ### Summary Statistics
 
@@ -482,13 +479,6 @@ This project uses the Medical Insurance Cost dataset from Kaggle, containing inf
 | No       | 1064  | 79.5%      |
 | Yes      | 274   | 20.5%      |
 
-| region   | Count | Percentage |
-|----------|-------|------------|
-| Southwest| 325   | 24.3%      |
-| Southeast| 364   | 27.2%      |
-| Northwest| 325   | 24.3%      |
-| Northeast| 324   | 24.2%      |
-
 ### Key Insights
 - Average insurance charge: $13,270
 - Smokers have significantly higher charges (mean ~$32,050 vs $8,434 for non-smokers)
@@ -499,6 +489,7 @@ This project uses the Medical Insurance Cost dataset from Kaggle, containing inf
 ### Data Cleaning Performed
 - Checked for missing values (none found)
 - Removed 1 duplicate entry
-- Encoded categorical variables (sex/smoker to binary, region to dummies)
+- Encoded categorical variables (sex/smoker to binary)
+- Dropped region column (not included to avoid hierarchical modeling)
 - Standardized numerical features for modeling
 - Outliers detected but retained for Bayesian analysis
