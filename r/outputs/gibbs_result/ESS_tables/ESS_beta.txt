@@ -1,7 +1,7 @@
-Parameter ESS
-(Intercept) 31499.4
-age 32000
-sex 30832.6
-bmi 32000
-children 32000
-smoker 32000
+Parameter	ESS
+(Intercept)	23997.1
+age	22369.7
+sex	22820.9
+bmi	23124.2
+children	22707.5
+smoker	22725.1
