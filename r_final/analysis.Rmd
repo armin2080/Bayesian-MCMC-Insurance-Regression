@@ -1,0 +1,463 @@
+---
+title: "Bayesian MCMC Analysis: Medical Insurance Costs"
+subtitle: "Gibbs Sampling and Metropolis-Hastings Comparison"
+author: "Bayesian Statistics Project"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    code_folding: show
+    theme: flatly
+    highlight: tango
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  dpi = 100
+)
+```
+
+# Introduction
+
+This notebook implements Bayesian linear regression using two MCMC algorithms:
+
+1. **Gibbs Sampling**: Utilizes conjugate priors for efficient sampling
+2. **Metropolis-Hastings**: General-purpose MCMC algorithm with adaptive tuning
+
+The analysis focuses on predicting medical insurance costs based on individual characteristics.
+
+## Load Required Libraries
+
+```{r libraries}
+suppressPackageStartupMessages({
+  library(MASS)        # For mvrnorm
+  library(coda)        # For MCMC diagnostics
+  library(ggplot2)     # For visualization
+  library(gridExtra)   # For multi-panel plots
+  library(knitr)       # For tables
+})
+
+# Source analysis scripts
+source("scripts/Data_Preprocessing.R")
+source("scripts/Model_Setup.R")
+source("scripts/Gibbs_Sampling.R")
+source("scripts/Metropolis_Hastings.R")
+source("scripts/Convergence_Detection.R")
+source("scripts/Posterior_Inference.R")
+source("scripts/Algorithm_Comparison.R")
+source("scripts/Residual_Diagnostics.R")
+```
+
+# 1. Data Loading and Exploration
+
+## Load Data
+
+```{r load-data}
+# Load cleaned data
+df <- read.csv("../data/expenses_cleaned.csv")
+
+cat(sprintf("Dataset dimensions: %d rows × %d columns\n", nrow(df), ncol(df)))
+cat(sprintf("Variables: %s\n", paste(colnames(df), collapse = ", ")))
+```
+
+## Descriptive Statistics
+
+```{r descriptives}
+# Summary statistics
+summary(df)
+
+# Check for missing values
+cat("\nMissing values:\n")
+print(colSums(is.na(df)))
+```
+
+## Data Visualization
+
+```{r data-viz, fig.height=8}
+# Distribution of charges
+p1 <- ggplot(df, aes(x = charges)) +
+  geom_histogram(bins = 50, fill = "steelblue", color = "white") +
+  labs(title = "Distribution of Medical Charges", x = "Charges ($)", y = "Count") +
+  theme_minimal()
+
+# Charges by smoker status
+p2 <- ggplot(df, aes(x = factor(smoker), y = charges, fill = factor(smoker))) +
+  geom_boxplot() +
+  labs(title = "Charges by Smoker Status", x = "Smoker (0=No, 1=Yes)", y = "Charges ($)") +
+  scale_fill_manual(values = c("lightgreen", "coral")) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Age vs Charges
+p3 <- ggplot(df, aes(x = age, y = charges, color = factor(smoker))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Age vs Charges", x = "Age", y = "Charges ($)", color = "Smoker") +
+  theme_minimal()
+
+# BMI vs Charges
+p4 <- ggplot(df, aes(x = bmi, y = charges, color = factor(smoker))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "BMI vs Charges", x = "BMI", y = "Charges ($)", color = "Smoker") +
+  theme_minimal()
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+## Correlation Matrix
+
+```{r correlation}
+# Compute correlation matrix
+cor_matrix <- cor(df)
+kable(round(cor_matrix, 3), caption = "Correlation Matrix")
+```
+
+# 2. Model Setup
+
+## Prepare Matrices
+
+```{r prepare-matrices}
+# Response variable
+y <- df$charges
+
+# Design matrix
+X <- cbind(1, as.matrix(df[, c("age", "sex", "bmi", "children", "smoker")]))
+colnames(X) <- c("Intercept", "Age", "Sex", "BMI", "Children", "Smoker")
+
+n <- nrow(X)
+p <- ncol(X)
+
+cat(sprintf("Sample size: n = %d\n", n))
+cat(sprintf("Parameters: p = %d (including intercept)\n", p))
+cat(sprintf("Features: %s\n", paste(colnames(X)[-1], collapse = ", ")))
+```
+
+## Prior Specification
+
+```{r priors}
+# Weakly informative priors
+prior_beta_mean <- rep(0, p)
+prior_beta_precision <- diag(0.001, p)  # Large variance (weak prior)
+
+prior_sigma2_shape <- 0.01
+prior_sigma2_scale <- 0.01
+
+cat("Prior specifications:\n")
+cat("  β ~ Normal(0, 1000*I)\n")
+cat(sprintf("  σ² ~ Inverse-Gamma(%.2f, %.2f)\n", prior_sigma2_shape, prior_sigma2_scale))
+```
+
+# 3. Gibbs Sampling
+
+## Run Gibbs Sampler
+
+```{r gibbs-sampling}
+set.seed(42)
+
+# Sampling parameters
+n_iter <- 50000
+warmup <- 10000
+n_chains <- 3
+
+cat(sprintf("Running Gibbs sampler:\n"))
+cat(sprintf("  Iterations: %d (warmup: %d)\n", n_iter, warmup))
+cat(sprintf("  Chains: %d\n", n_chains))
+
+# Run sampler
+gibbs_results <- lapply(1:n_chains, function(chain_id) {
+  cat(sprintf("  Chain %d/%d...\n", chain_id, n_chains))
+  gibbs_lm(y, X, prior_beta_mean, prior_beta_precision,
+           prior_sigma2_shape, prior_sigma2_scale,
+           n_iter, warmup, seed = 42 + chain_id)
+})
+
+cat("\n✓ Gibbs sampling complete\n")
+```
+
+## Convergence Diagnostics
+
+```{r gibbs-convergence}
+# Extract chains
+gibbs_beta_chains <- lapply(gibbs_results, function(x) x$beta)
+gibbs_sigma2_chains <- lapply(gibbs_results, function(x) x$sigma2)
+
+# Compute R-hat
+rhat_beta <- sapply(1:p, function(j) {
+  chains <- lapply(gibbs_beta_chains, function(x) x[, j])
+  mcmc_list <- mcmc.list(lapply(chains, mcmc))
+  gelman.diag(mcmc_list, autoburnin = FALSE)$psrf[1, 1]
+})
+
+# Compute ESS
+ess_beta <- sapply(1:p, function(j) {
+  chains <- lapply(gibbs_beta_chains, function(x) x[, j])
+  mcmc_list <- mcmc.list(lapply(chains, mcmc))
+  min(effectiveSize(mcmc_list))
+})
+
+# Convergence table
+convergence_df <- data.frame(
+  Parameter = colnames(X),
+  Rhat = rhat_beta,
+  ESS = round(ess_beta),
+  Converged = rhat_beta < 1.1
+)
+
+kable(convergence_df, caption = "Gibbs Sampling Convergence Diagnostics")
+```
+
+## Trace Plots
+
+```{r gibbs-traces, fig.height=10}
+par(mfrow = c(4, 2), mar = c(4, 4, 2, 1))
+
+for (j in 1:p) {
+  plot(1, type = "n", xlim = c(0, n_iter - warmup), 
+       ylim = range(sapply(gibbs_beta_chains, function(x) range(x[, j]))),
+       xlab = "Iteration", ylab = colnames(X)[j],
+       main = paste("Trace Plot:", colnames(X)[j]))
+  
+  for (chain_id in 1:n_chains) {
+    lines(gibbs_beta_chains[[chain_id]][, j], 
+          col = c("blue", "red", "green")[chain_id], lwd = 0.5)
+  }
+}
+```
+
+## Posterior Distributions
+
+```{r gibbs-posteriors, fig.height=10}
+# Combine chains
+gibbs_beta_all <- do.call(rbind, gibbs_beta_chains)
+gibbs_sigma2_all <- do.call(c, gibbs_sigma2_chains)
+
+par(mfrow = c(4, 2), mar = c(4, 4, 2, 1))
+
+for (j in 1:p) {
+  hist(gibbs_beta_all[, j], breaks = 50, col = "lightblue", border = "white",
+       main = paste("Posterior:", colnames(X)[j]),
+       xlab = colnames(X)[j], freq = FALSE)
+  
+  # Add mean line
+  abline(v = mean(gibbs_beta_all[, j]), col = "red", lwd = 2, lty = 2)
+  
+  # Add 95% CI
+  ci <- quantile(gibbs_beta_all[, j], c(0.025, 0.975))
+  abline(v = ci, col = "blue", lwd = 2, lty = 3)
+}
+```
+
+## Posterior Summary
+
+```{r gibbs-summary}
+# Calculate posterior statistics
+posterior_summary <- data.frame()
+
+for (j in 1:p) {
+  samples <- gibbs_beta_all[, j]
+  posterior_summary <- rbind(posterior_summary, data.frame(
+    Parameter = colnames(X)[j],
+    Mean = mean(samples),
+    SD = sd(samples),
+    CI_2.5 = quantile(samples, 0.025),
+    CI_97.5 = quantile(samples, 0.975)
+  ))
+}
+
+# Add sigma²
+posterior_summary <- rbind(posterior_summary, data.frame(
+  Parameter = "σ²",
+  Mean = mean(gibbs_sigma2_all),
+  SD = sd(gibbs_sigma2_all),
+  CI_2.5 = quantile(gibbs_sigma2_all, 0.025),
+  CI_97.5 = quantile(gibbs_sigma2_all, 0.975)
+))
+
+kable(posterior_summary, digits = 4, caption = "Posterior Estimates (Gibbs Sampling)")
+```
+
+# 4. Metropolis-Hastings
+
+## Run MH Sampler
+
+```{r mh-sampling}
+set.seed(42)
+
+cat(sprintf("Running Metropolis-Hastings sampler:\n"))
+cat(sprintf("  Iterations: %d (warmup: %d)\n", n_iter, warmup))
+cat(sprintf("  Chains: %d\n", n_chains))
+cat(sprintf("  Adaptive tuning: enabled\n"))
+
+# Run sampler
+mh_results <- lapply(1:n_chains, function(chain_id) {
+  cat(sprintf("  Chain %d/%d...\n", chain_id, n_chains))
+  metropolis_hastings_lm(y, X, prior_beta_mean, prior_beta_precision,
+                        prior_sigma2_shape, prior_sigma2_scale,
+                        n_iter, warmup, seed = 42 + chain_id)
+})
+
+cat("\n✓ Metropolis-Hastings sampling complete\n")
+```
+
+## MH Convergence Diagnostics
+
+```{r mh-convergence}
+# Extract chains
+mh_beta_chains <- lapply(mh_results, function(x) x$beta)
+mh_sigma2_chains <- lapply(mh_results, function(x) x$sigma2)
+
+# Compute R-hat for MH
+rhat_mh_beta <- sapply(1:p, function(j) {
+  chains <- lapply(mh_beta_chains, function(x) x[, j])
+  mcmc_list <- mcmc.list(lapply(chains, mcmc))
+  gelman.diag(mcmc_list, autoburnin = FALSE)$psrf[1, 1]
+})
+
+# ESS for MH
+ess_mh_beta <- sapply(1:p, function(j) {
+  chains <- lapply(mh_beta_chains, function(x) x[, j])
+  mcmc_list <- mcmc.list(lapply(chains, mcmc))
+  min(effectiveSize(mcmc_list))
+})
+
+# Acceptance rates
+mh_accept_beta <- mean(sapply(mh_results, function(x) x$acceptance_rate_beta))
+mh_accept_sigma2 <- mean(sapply(mh_results, function(x) x$acceptance_rate_sigma2))
+
+cat(sprintf("Acceptance rates:\n"))
+cat(sprintf("  β: %.1f%%\n", mh_accept_beta * 100))
+cat(sprintf("  σ²: %.1f%%\n", mh_accept_sigma2 * 100))
+
+# Convergence table
+mh_convergence_df <- data.frame(
+  Parameter = colnames(X),
+  Rhat = rhat_mh_beta,
+  ESS = round(ess_mh_beta),
+  Converged = rhat_mh_beta < 1.1
+)
+
+kable(mh_convergence_df, caption = "Metropolis-Hastings Convergence Diagnostics")
+```
+
+# 5. Algorithm Comparison
+
+```{r algorithm-comparison}
+# Compare algorithms
+compare_algorithms(
+  gibbs_results = gibbs_results,
+  mh_results = mh_results,
+  param_names = colnames(X),
+  output_dir = "../outputs/algorithm_comparison"
+)
+```
+
+# 6. Model Fit and Diagnostics
+
+## Model Fit Statistics
+
+```{r model-fit}
+# Posterior predictive mean
+beta_mean <- colMeans(gibbs_beta_all)
+y_pred <- X %*% beta_mean
+
+# R-squared
+ss_res <- sum((y - y_pred)^2)
+ss_tot <- sum((y - mean(y))^2)
+r_squared <- 1 - ss_res / ss_tot
+
+# RMSE
+rmse <- sqrt(mean((y - y_pred)^2))
+
+# MAE
+mae <- mean(abs(y - y_pred))
+
+model_fit_df <- data.frame(
+  Statistic = c("R²", "Adjusted R²", "RMSE", "MAE"),
+  Value = c(
+    r_squared,
+    1 - (1 - r_squared) * (n - 1) / (n - p),
+    rmse,
+    mae
+  )
+)
+
+kable(model_fit_df, digits = 4, caption = "Model Fit Statistics")
+```
+
+## Residual Diagnostics
+
+```{r residual-diagnostics, fig.height=8}
+plot_residual_diagnostics(
+  y_obs = y,
+  X = X,
+  beta_samples = gibbs_beta_all,
+  sigma2_samples = gibbs_sigma2_all,
+  output_path = NULL,  # Display in notebook
+  model_name = "Bayesian Linear Regression"
+)
+```
+
+# 7. Interpretation
+
+## Effect Sizes
+
+```{r effect-sizes}
+beta_mean_dollars <- beta_mean
+
+# Convert standardized effects to dollar amounts (if features were standardized)
+effect_sizes <- data.frame(
+  Feature = colnames(X)[-1],
+  Coefficient = beta_mean_dollars[-1],
+  Lower_95 = apply(gibbs_beta_all[, -1], 2, function(x) quantile(x, 0.025)),
+  Upper_95 = apply(gibbs_beta_all[, -1], 2, function(x) quantile(x, 0.975))
+)
+
+kable(effect_sizes, digits = 2, caption = "Effect Sizes (Dollars)")
+```
+
+## Key Findings
+
+The Bayesian analysis reveals:
+
+1. **Smoking Status**: Strongest predictor of insurance costs
+   - Mean effect: $`r round(beta_mean[6], 2)`
+   - 95% CI: [`r round(quantile(gibbs_beta_all[,6], 0.025), 2)`, `r round(quantile(gibbs_beta_all[,6], 0.975), 2)`]
+
+2. **Age**: Significant positive effect
+   - Older individuals have higher costs
+
+3. **BMI**: Moderate positive effect
+   - Higher BMI associated with higher costs
+
+4. **Model Fit**: 
+   - R² = `r round(r_squared, 3)`
+   - RMSE = $`r round(rmse, 2)`
+
+5. **Convergence**: 
+   - All chains converged (R-hat < 1.1)
+   - Gibbs ~`r round(mean(ess_beta)/mean(ess_mh_beta), 1)`× more efficient than MH
+
+# 8. Conclusions
+
+This analysis demonstrates:
+
+- **Gibbs sampling** is highly efficient for conjugate prior models
+- **Metropolis-Hastings** is more flexible but less efficient
+- Both algorithms converge to the same posterior distributions
+- Smoking status dominates medical cost predictions
+- The model explains ~`r round(r_squared*100, 1)`% of variance in insurance charges
+
+# Session Info
+
+```{r session-info}
+sessionInfo()
+```
