@@ -1,0 +1,2 @@
+Parameter Rhat
+Sigma2 1.0001

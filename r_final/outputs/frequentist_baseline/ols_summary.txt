@@ -1,0 +1,31 @@
+
+> cat("OLS baseline: charges ~ age + sex + bmi + children + smoker\n\n")
+OLS baseline: charges ~ age + sex + bmi + children + smoker
+
+
+> print(summary(ols_fit))
+
+Call:
+lm(formula = charges ~ age + sex + bmi + children + smoker, data = df)
+
+Residuals:
+   Min     1Q Median     3Q    Max 
+-11838  -2919  -1000   1376  29565 
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+(Intercept)   8461.3      246.9  34.276  < 2e-16 ***
+age           3618.7      167.4  21.622  < 2e-16 ***
+sex1          -127.2      333.6  -0.381  0.70303    
+bmi           1966.6      167.3  11.753  < 2e-16 ***
+children       571.3      166.3   3.435  0.00061 ***
+smoker1      23822.3      412.7  57.719  < 2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 6072 on 1331 degrees of freedom
+Multiple R-squared:  0.7496,	Adjusted R-squared:  0.7486 
+F-statistic: 796.7 on 5 and 1331 DF,  p-value: < 2.2e-16
+
+
+> sink()

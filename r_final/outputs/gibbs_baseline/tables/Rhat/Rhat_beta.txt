@@ -1,0 +1,7 @@
+Parameter Rhat
+(Intercept) 1
+age 1
+sex1 1
+bmi 1.0001
+children 1
+smoker1 1
