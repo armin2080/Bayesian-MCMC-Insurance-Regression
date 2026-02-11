@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Quick analysis runner for generating fresh results without region"""
+"""Quick analysis runner for generating results."""
 
 import numpy as np
 import pandas as pd
@@ -7,15 +7,13 @@ from pathlib import Path
 from gibbs_sampling import gibbs_lm
 
 print("="*80)
-print("RUNNING GIBBS SAMPLING ON CLEANED DATA (NO REGION)")
+print("Running Gibbs Sampling on Cleaned Data")
 print("="*80)
 
-# Load cleaned data (without region)
 df = pd.read_csv('../../data/expenses_cleaned.csv')
 print(f"\nData shape: {df.shape}")
 print(f"Columns: {list(df.columns)}")
 
-# Prepare data
 y = df['charges'].values
 X = df.drop('charges', axis=1).values
 X_with_intercept = np.column_stack([np.ones(len(y)), X])
@@ -26,7 +24,6 @@ n, p = X_with_intercept.shape
 print(f"\nn = {n} observations")
 print(f"p = {p} parameters (including intercept)")
 
-# Run Gibbs sampling
 print("\nRunning Gibbs sampler (50,000 iterations, 10,000 warmup, 3 chains)...")
 chains = gibbs_lm(
     y=y,

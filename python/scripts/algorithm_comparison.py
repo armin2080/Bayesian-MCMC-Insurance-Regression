@@ -5,38 +5,17 @@ import pandas as pd
 from scipy import stats
 import arviz as az
 
-# Import manual MCMC diagnostics (demonstrating understanding of mechanics)
 from mcmc_diagnostics import rhat, ess_geyer
 
 
 def compare_algorithms(gibbs_results, mh_results, param_names=None, output_dir='../outputs/algorithm_comparison'):
     """
-    Comprehensive comparison of Gibbs Sampling vs Metropolis-Hastings.
-    
-    Compares:
-    1. Effective Sample Size (ESS)
-    2. Convergence diagnostics (R-hat)
-    3. Computational efficiency (ESS per second)
-    4. Acceptance rates (for MH)
-    5. Autocorrelation
-    6. Posterior means and credible intervals
-    
-    Parameters:
-    -----------
-    gibbs_results : list of dicts
-        Results from Gibbs sampler
-    mh_results : list of dicts
-        Results from Metropolis-Hastings sampler
-    param_names : list of str
-        Names of parameters for reporting
-    output_dir : str
-        Directory to save comparison outputs
+    Compare Gibbs vs Metropolis-Hastings on ESS, R-hat, efficiency, and autocorrelation.
     """
     
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     
-    # Extract beta samples
     gibbs_beta = [chain['beta'] for chain in gibbs_results]
     mh_beta = [chain['beta'] for chain in mh_results]
     
@@ -49,25 +28,19 @@ def compare_algorithms(gibbs_results, mh_results, param_names=None, output_dir='
     if param_names is None:
         param_names = [f'β{i}' for i in range(n_params)]
     
-    # Get timing information
     gibbs_time = sum(chain.get('time_elapsed', 0) for chain in gibbs_results)
     mh_time = sum(chain.get('time_elapsed', 0) for chain in mh_results)
     
-    # ========================================
-    # 1. Effective Sample Size (ESS) Comparison
-    # ========================================
     print("=" * 70)
-    print("ALGORITHM COMPARISON: Gibbs Sampling vs Metropolis-Hastings")
+    print("Algorithm Comparison: Gibbs vs Metropolis-Hastings")
     print("=" * 70)
     
     ess_comparison = []
     
     for j in range(n_params):
-        # Gibbs ESS - using manual implementation
         gibbs_param = np.array([chain[:, j] for chain in gibbs_beta])
         gibbs_ess = ess_geyer(gibbs_param)
         
-        # MH ESS - using manual implementation
         mh_param = np.array([chain[:, j] for chain in mh_beta])
         mh_ess = ess_geyer(mh_param)
         
@@ -78,7 +51,6 @@ def compare_algorithms(gibbs_results, mh_results, param_names=None, output_dir='
             'ESS_Ratio': gibbs_ess / mh_ess if mh_ess > 0 else np.inf
         })
     
-    # Add sigma2
     gibbs_sigma2_arr = np.array(gibbs_sigma2)
     mh_sigma2_arr = np.array(mh_sigma2)
     gibbs_ess_sigma = ess_geyer(gibbs_sigma2_arr)
@@ -93,7 +65,7 @@ def compare_algorithms(gibbs_results, mh_results, param_names=None, output_dir='
     
     ess_df = pd.DataFrame(ess_comparison)
     
-    print("\n1. EFFECTIVE SAMPLE SIZE (ESS)")
+    print("\n1. Effective Sample Size")
     print("-" * 70)
     print(ess_df.to_string(index=False))
     print(f"\nAverage ESS Ratio (Gibbs/MH): {ess_df['ESS_Ratio'].mean():.3f}")

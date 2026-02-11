@@ -1,6 +1,5 @@
 """
-Residual diagnostics for Bayesian linear regression models.
-Generates comprehensive residual plots for model validation.
+Residual diagnostics for Bayesian regression.
 """
 
 import numpy as np
@@ -11,68 +10,22 @@ from scipy import stats
 
 
 def compute_residuals(y_obs, X, beta_samples, sigma2_samples):
-    """
-    Compute Bayesian residuals using posterior mean predictions.
-    
-    Parameters:
-    -----------
-    y_obs : array (n,)
-        Observed responses
-    X : array (n, p)
-        Design matrix
-    beta_samples : array (n_samples, p)
-        Posterior samples of beta
-    sigma2_samples : array (n_samples,)
-        Posterior samples of sigma^2
-        
-    Returns:
-    --------
-    residuals : array (n,)
-        Residuals = observed - posterior mean prediction
-    y_pred : array (n,)
-        Posterior mean predictions
-    """
-    # Compute posterior mean of beta
+    """Compute residuals using posterior mean predictions."""
     beta_mean = np.mean(beta_samples, axis=0)
-    
-    # Posterior mean predictions
     y_pred = X @ beta_mean
-    
-    # Residuals
     residuals = y_obs - y_pred
     
     return residuals, y_pred
 
 
 def standardized_residuals(residuals, sigma2_samples, X, leverage=None):
-    """
-    Compute standardized (Pearson) residuals.
-    
-    Parameters:
-    -----------
-    residuals : array (n,)
-        Raw residuals
-    sigma2_samples : array (n_samples,)
-        Posterior samples of sigma^2
-    X : array (n, p)
-        Design matrix
-    leverage : array (n,), optional
-        Hat matrix diagonal (leverage values)
-        
-    Returns:
-    --------
-    std_residuals : array (n,)
-        Standardized residuals
-    """
-    # Posterior mean of sigma
+    """Compute standardized (Pearson) residuals."""
     sigma_mean = np.sqrt(np.mean(sigma2_samples))
     
-    # Compute leverage if not provided
     if leverage is None:
         H = X @ np.linalg.inv(X.T @ X) @ X.T
         leverage = np.diag(H)
     
-    # Standardize: divide by sqrt(sigma^2 * (1 - h_i))
     std_residuals = residuals / (sigma_mean * np.sqrt(1 - leverage))
     
     return std_residuals
@@ -81,35 +34,27 @@ def standardized_residuals(residuals, sigma2_samples, X, leverage=None):
 def create_residual_diagnostic_plot(y_obs, X, beta_samples, sigma2_samples, 
                                    model_name, output_dir='../outputs'):
     """
-    Create comprehensive 4-panel residual diagnostic plot.
-    
-    Panels:
+    4-panel residual diagnostic plot:
     1. Residuals vs Fitted
-    2. QQ plot for normality
-    3. Scale-Location (|std residuals| vs fitted)
+    2. QQ plot
+    3. Scale-Location
     4. Histogram of standardized residuals
     """
-    # Compute residuals
     residuals, y_pred = compute_residuals(y_obs, X, beta_samples, sigma2_samples)
     
-    # Compute leverage
     H = X @ np.linalg.inv(X.T @ X) @ X.T
     leverage = np.diag(H)
     
-    # Standardized residuals
     std_residuals = standardized_residuals(residuals, sigma2_samples, X, leverage)
     
-    # Create figure
     fig, axes = plt.subplots(2, 2, figsize=(14, 11))
     fig.suptitle(f'Residual Diagnostics: {model_name}', 
                  fontsize=16, fontweight='bold', y=0.995)
     
-    # Panel 1: Residuals vs Fitted
     ax = axes[0, 0]
     ax.scatter(y_pred, residuals, alpha=0.5, s=40, edgecolors='k', linewidths=0.5)
     ax.axhline(y=0, color='red', linestyle='--', linewidth=2, label='Zero line')
     
-    # Add LOWESS smoother
     from scipy.signal import savgol_filter
     sorted_idx = np.argsort(y_pred)
     if len(y_pred) > 50:
@@ -126,7 +71,6 @@ def create_residual_diagnostic_plot(y_obs, X, beta_samples, sigma2_samples,
     ax.legend(fontsize=10)
     ax.grid(alpha=0.3)
     
-    # Panel 2: QQ plot
     ax = axes[0, 1]
     stats.probplot(std_residuals, dist="norm", plot=ax)
     ax.set_title('Normal Q-Q Plot', fontsize=13, fontweight='bold')
@@ -134,13 +78,11 @@ def create_residual_diagnostic_plot(y_obs, X, beta_samples, sigma2_samples,
     ax.set_ylabel('Standardized Residuals', fontsize=12)
     ax.grid(alpha=0.3)
     
-    # Panel 3: Scale-Location
     ax = axes[1, 0]
     sqrt_abs_std_res = np.sqrt(np.abs(std_residuals))
     ax.scatter(y_pred, sqrt_abs_std_res, alpha=0.5, s=40, 
                edgecolors='k', linewidths=0.5)
     
-    # Add LOWESS smoother
     if len(y_pred) > 50:
         smooth = savgol_filter(sqrt_abs_std_res[sorted_idx], window, 3)
         ax.plot(y_pred[sorted_idx], smooth, color='red', linewidth=2, 

@@ -7,20 +7,12 @@ import time
 
 
 def gibbs_lm(
-    y, X, n_iter=10000, warmup=2000, n_chains=3,
+    y, X, n_iter=10000, warmup=2000, n_chains=4,
     b0=None, B0=None, a0=0.01, d0=0.01, seed=123
 ):
     """
-    Conjugate Bayesian linear regression with Normal-Inverse-Gamma prior:
-
-      y | beta, sigma2 ~ N(X beta, sigma2 I)
-      beta | sigma2    ~ N(b0, sigma2 * (B0)^{-1})
-      sigma2           ~ Inv-Gamma(a0, d0)   [shape a0, scale d0]
-
-    Full conditionals:
-      beta | sigma2,y  ~ N(bn, sigma2 * (Bn)^{-1})
-      sigma2 | beta,y  ~ Inv-Gamma(an, dn)
-        dn = d0 + 0.5 * [ (y-Xb)'(y-Xb) + (b-b0)'B0(b-b0) ]
+    Gibbs sampler for Bayesian linear regression with conjugate priors.
+    Uses Normal-Inverse-Gamma setup so we can sample beta and sigma2 in closed form.
     """
 
     y = np.asarray(y).reshape(-1)
@@ -31,24 +23,19 @@ def gibbs_lm(
     if b0 is None:
         b0 = np.zeros(p)
     if B0 is None:
-        B0 = np.eye(p) * 1e-4  # weak prior precision
+        B0 = np.eye(p) * 1e-4
 
     b0 = np.asarray(b0).reshape(-1)
     B0 = np.asarray(B0)
 
     chain_results = []
 
-    # Precompute sufficient statistics
+    # stuff that doesn't change between iterations
     XtX = X.T @ X
     Xty = X.T @ y
-
-    # Posterior precision is constant across iterations
     Bn = XtX + B0
     bn = np.linalg.solve(Bn, Xty + B0 @ b0)
-
-    # Cholesky factor once (avoid explicit inverse)
-    # Bn = L L^T, L lower triangular
-    L = np.linalg.cholesky(Bn)
+    L = np.linalg.cholesky(Bn)  # for sampling from multivariate normal
 
     for chain in range(n_chains):
         rng = np.random.default_rng(seed + chain)
@@ -62,25 +49,17 @@ def gibbs_lm(
         t0 = time.time()
 
         for iter_idx in range(n_iter):
-            # ---- beta | sigma2, y ----
+            # sample beta from its full conditional
             z = rng.standard_normal(p)
-
-            # sample from N(bn, sigma2 * Bn^{-1})
-            # if L L^T = Bn, then Bn^{-1} = L^{-T} L^{-1}
-            # draw: bn + sqrt(sigma2) * L^{-T} L^{-1} z
             v = np.linalg.solve(L, z)
             w = np.linalg.solve(L.T, v)
             beta_draw = bn + np.sqrt(sigma2_draw) * w
 
-            # ---- sigma2 | beta, y ----
+            # sample sigma2 from its full conditional
             resid = y - X @ beta_draw
             an = a0 + n / 2.0
-
-            # IMPORTANT: include beta prior quadratic term for sigma2-scaled beta prior
-            quad_prior = (beta_draw - b0).T @ B0 @ (beta_draw - b0)
+            quad_prior = (beta_draw - b0).T @ B0 @ (beta_draw - b0)  # prior term matters since beta is sigma2-scaled
             dn = d0 + 0.5 * (resid @ resid + quad_prior)
-
-            # Inv-Gamma(shape=an, scale=dn): sample via 1/Gamma(an, scale=1/dn)
             sigma2_draw = 1.0 / rng.gamma(shape=an, scale=1.0 / dn)
 
             beta_store[iter_idx, :] = beta_draw
@@ -166,7 +145,6 @@ def beta_summary_stats(beta_list):
 
 
 def sigma2_summary_stats(sigma2_list):
-    # Combine all chains
     sigma2_all = np.concatenate(sigma2_list)
     
     summary = {
@@ -176,7 +154,6 @@ def sigma2_summary_stats(sigma2_list):
         '97.5%': np.percentile(sigma2_all, 97.5)
     }
     
-    # Round values
     summary = {k: round(v, 4) for k, v in summary.items()}
     
     print("\nSigma^2 Summary Statistics:")
@@ -187,12 +164,10 @@ def sigma2_summary_stats(sigma2_list):
 
 
 if __name__ == "__main__":
-    # Example usage
     print("=" * 60)
-    print("GIBBS SAMPLER FOR BAYESIAN LINEAR REGRESSION")
+    print("Testing Gibbs sampler")
     print("=" * 60)
     
-    # Generate synthetic data for testing
     np.random.seed(42)
     n = 100
     p = 3
@@ -203,23 +178,17 @@ if __name__ == "__main__":
     
     y = X @ true_beta + np.random.randn(n) * np.sqrt(true_sigma2)
     
-    print(f"\nTest data generated:")
-    print(f"  n = {n}, p = {p}")
-    print(f"  True beta: {true_beta}")
-    print(f"  True sigma^2: {true_sigma2}")
+    print(f"\nTest data: n = {n}, p = {p}")
+    print(f"True beta: {true_beta}")
+    print(f"True sigma^2: {true_sigma2}")
     
-    # Run Gibbs sampler
-    print("\nRunning Gibbs sampler...")
+    print("\nRunning sampler...")
     results = gibbs_lm(y, X, n_iter=5000, warmup=1000, n_chains=3)
     
-    # Extract beta and sigma2
     beta_list = [chain['beta'] for chain in results]
     sigma2_list = [chain['sigma2'] for chain in results]
     
-    # Summary statistics
     beta_summary = beta_summary_stats(beta_list)
     sigma2_summary = sigma2_summary_stats(sigma2_list)
     
-    print("\n" + "=" * 60)
-    print("TEST COMPLETE")
-    print("=" * 60)
+    print("\nDone.")

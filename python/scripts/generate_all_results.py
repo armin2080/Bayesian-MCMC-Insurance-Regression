@@ -1,18 +1,12 @@
 #!/usr/bin/env python
 """
-Generate all results for the report
-- Gibbs Sampling baseline
-- Metropolis-Hastings baseline
-- Algorithm Comparison
-- Log-transformed model
-- Interaction model
+Generate all results for the report.
 """
 
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
-# Import modules
 from data_preprocessing import preprocess_data
 from model_setup import create_design_matrix, run_ols_baseline, run_bayesian_model
 from gibbs_sampling import gibbs_lm, beta_summary_stats, sigma2_summary_stats
@@ -20,23 +14,19 @@ from metropolis_hastings import metropolis_hastings_lm
 from algorithm_comparison import compare_algorithms
 
 print("="*80)
-print("COMPREHENSIVE RESULTS GENERATION")
+print("Comprehensive results generation")
 print("="*80)
 
-# Load data
 df = pd.read_csv('../../data/expenses_cleaned.csv')
 print(f"\nData loaded: {df.shape}")
 
-# ============================================================================
-# 1. BASELINE MODEL - GIBBS SAMPLING
-# ============================================================================
-print("\n[1/5] Running Baseline Model - Gibbs Sampling...")
+print("\n[1/5] Baseline - Gibbs Sampling...")
 X, y, feature_names = create_design_matrix(df, formula='baseline')
 
 # Run Gibbs
 gibbs_results = gibbs_lm(
     y=y, X=X, 
-    n_iter=10000, warmup=2000, n_chains=3, 
+    n_iter=10000, warmup=2000, n_chains=4, 
     seed=123
 )
 
@@ -60,7 +50,7 @@ print("\n[2/5] Running Baseline Model - Metropolis-Hastings...")
 
 mh_results = metropolis_hastings_lm(
     y=y, X=X,
-    n_iter=10000, warmup=2000, n_chains=3,
+    n_iter=10000, warmup=2000, n_chains=4,
     proposal_sd_beta=0.5, proposal_sd_sigma2=0.3,
     seed=123
 )
@@ -92,7 +82,7 @@ X_log, y_log, feature_names_log = create_design_matrix(df, formula='log')
 
 gibbs_log = gibbs_lm(
     y=y_log, X=X_log,
-    n_iter=10000, warmup=2000, n_chains=3,
+    n_iter=10000, warmup=2000, n_chains=4,
     seed=456
 )
 
@@ -115,7 +105,7 @@ X_int, y_int, feature_names_int = create_design_matrix(df, formula='interaction'
 
 gibbs_int = gibbs_lm(
     y=y_int, X=X_int,
-    n_iter=10000, warmup=2000, n_chains=3,
+    n_iter=10000, warmup=2000, n_chains=4,
     seed=789
 )
 

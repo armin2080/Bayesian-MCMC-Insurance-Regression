@@ -50,7 +50,6 @@ def acf_plot_beta(beta_list, model_name, lag_max=50, ylim_zoom=0.1, plot_dir='..
 
 
 def acf_plot_sigma2(sigma2_list, model_name, lag_max=50, ylim_zoom=0.1, plot_dir='../outputs'):
-    # Create output directories
     acf_dir = Path(plot_dir) / model_name / 'ACF_plots'
     full_dir = acf_dir / 'full'
     zoom_dir = acf_dir / 'zoomed'
@@ -58,21 +57,15 @@ def acf_plot_sigma2(sigma2_list, model_name, lag_max=50, ylim_zoom=0.1, plot_dir
     full_dir.mkdir(parents=True, exist_ok=True)
     zoom_dir.mkdir(parents=True, exist_ok=True)
     
-    # Combine all chains
     sigma2_samples = np.concatenate(sigma2_list)
-    
-    # Compute ACF
     acf_values = acf(sigma2_samples, nlags=lag_max, fft=True)
     lags = np.arange(len(acf_values))
     
-    # ----------------------------
-    # Full ACF
-    # ----------------------------
+    # full ACF
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.stem(lags, acf_values, linefmt='C0-', markerfmt='C0o', basefmt='C0-')
     ax.axhline(y=0, color='red', linestyle='-', linewidth=1)
     
-    # Confidence intervals
     ci = 1.96 / np.sqrt(len(sigma2_samples))
     ax.axhline(y=ci, color='blue', linestyle='--', linewidth=1)
     ax.axhline(y=-ci, color='blue', linestyle='--', linewidth=1)
@@ -87,14 +80,10 @@ def acf_plot_sigma2(sigma2_list, model_name, lag_max=50, ylim_zoom=0.1, plot_dir
     plt.close()
     print(f"Saved: {full_file}")
     
-    # ----------------------------
-    # Zoomed ACF
-    # ----------------------------
+    # zoomed ACF
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.stem(lags[1:], acf_values[1:], linefmt='C0-', markerfmt='C0o', basefmt='C0-')
     ax.axhline(y=0, color='red', linestyle='-', linewidth=1)
-    
-    # Confidence intervals
     ax.axhline(y=ci, color='blue', linestyle='--', linewidth=1)
     ax.axhline(y=-ci, color='blue', linestyle='--', linewidth=1)
     
@@ -111,31 +100,19 @@ def acf_plot_sigma2(sigma2_list, model_name, lag_max=50, ylim_zoom=0.1, plot_dir
 
 
 def effective_sample_size(x, max_lag=100):
-    # Compute autocorrelation values (excluding lag 0)
     acf_values = acf(x, nlags=max_lag, fft=True)[1:]
-    
-    # Initial positive sequence
     positive_acf = acf_values[acf_values > 0]
-    
-    # ESS formula
     ess = len(x) / (1 + 2 * np.sum(positive_acf))
-    
     return ess
 
 
 def ess_beta_table(beta_list, X, model_name, output_dir='../../r/outputs'):
-    # Create output directory
     ess_dir = Path(output_dir) / model_name / 'ESS_tables'
     ess_dir.mkdir(parents=True, exist_ok=True)
     
-    # Combine all chains into one matrix
     beta_all = np.vstack(beta_list)
-    
-    # Compute ESS for each coefficient
     ess_vals = [effective_sample_size(beta_all[:, j]) for j in range(beta_all.shape[1])]
     
-    # Create table
-    # Try to get parameter names from X if it's a pandas DataFrame, otherwise use generic names
     if hasattr(X, 'columns'):
         param_names = X.columns.tolist()
     else:
@@ -146,7 +123,6 @@ def ess_beta_table(beta_list, X, model_name, output_dir='../../r/outputs'):
         'ESS': [round(ess, 1) for ess in ess_vals]
     })
     
-    # Save ESS table
     output_file = ess_dir / 'ESS_beta.txt'
     ess_table.to_csv(output_file, sep='\t', index=False)
     

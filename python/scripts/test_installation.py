@@ -92,12 +92,10 @@ def test_data_file():
 
 def main():
     print("="*70)
-    print("PYTHON IMPLEMENTATION - QUICK TEST")
+    print("Testing Python setup")
     print("="*70)
     
     results = []
-    
-    # Test imports
     results.append(test_imports())
     
     # Test custom modules

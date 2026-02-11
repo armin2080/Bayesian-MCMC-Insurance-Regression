@@ -31,11 +31,11 @@ def encode_binary_variables(df):
 
 
 def drop_region(df):
-    """Drop region column as it's not used in the model to avoid hierarchical modeling."""
+    """Drop region column since we're not doing hierarchical modeling."""
     df_clean = df.copy()
     if 'region' in df_clean.columns:
         df_clean = df_clean.drop('region', axis=1)
-        print("  - Dropped 'region' column (not included in model)")
+        print("  - Dropped 'region' column")
     return df_clean
 
 
@@ -50,10 +50,8 @@ def remove_duplicates(df):
 
 
 def plot_boxplots(df, output_dir='../../plots'):
-    # Select numeric columns
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     
-    # Create figure
     n_cols = len(numeric_cols)
     fig, axes = plt.subplots(1, n_cols, figsize=(4*n_cols, 5))
     
@@ -68,7 +66,6 @@ def plot_boxplots(df, output_dir='../../plots'):
     plt.suptitle('Boxplots of All Numeric Features', fontsize=16, y=1.02)
     plt.tight_layout()
     
-    # Create output directory if it doesn't exist
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     output_path = Path(output_dir) / 'numeric_features_boxplots.png'
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
@@ -116,63 +113,50 @@ def preprocess_data(input_path='../../data/expenses.csv',
                    output_path='../../data/expenses_cleaned.csv',
                    plot_dir='../outputs'):
     print("=" * 60)
-    print("DATA PREPROCESSING PIPELINE")
+    print("Preprocessing data")
     print("=" * 60)
     
-    # (1) Load data
-    print("\n(1) Loading data...")
+    print("\nLoading data...")
     df = load_data(input_path)
     print(f"Dataset shape: {df.shape}")
     
-    # (2) Check missing values
-    print("\n(2) Checking for missing values...")
+    print("\nChecking for missing values...")
     check_missing_values(df)
     
-    # (3) Check data types
-    print("\n(3) Checking data types...")
+    print("\nChecking data types...")
     check_data_types(df)
     
-    # (4) Encode binary variables
-    print("\n(4) Encoding binary variables...")
+    print("\nEncoding binary variables...")
     df_clean = encode_binary_variables(df)
     print("  - sex: male=1, female=0")
     print("  - smoker: yes=1, no=0")
     
-    # (5) Drop region column
-    print("\n(5) Dropping region column...")
+    print("\nDropping region column...")
     df_clean = drop_region(df_clean)
     
-    # (6) Remove duplicates
-    print("\n(6) Removing duplicates...")
+    print("\nRemoving duplicates...")
     df_clean = remove_duplicates(df_clean)
     
-    # (7) Analyze outliers
-    print("\n(7) Analyzing outliers...")
+    print("\nAnalyzing outliers...")
     plot_boxplots(df_clean, output_dir=plot_dir)
     analyze_outliers(df_clean)
     
-    # (8) Normalize numeric features
-    print("\n(8) Normalizing numeric features...")
+    print("\nNormalizing numeric features...")
     df_clean = normalize_numeric_features(df_clean)
     
-    # (9) Display summary statistics
-    print("\n(9) Summary statistics:")
+    print("\nSummary statistics:")
     print(df_clean.describe())
     
-    # (10) Save cleaned data
-    print(f"\n(10) Saving cleaned data to: {output_path}")
+    print(f"\nSaving cleaned data to: {output_path}")
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     df_clean.to_csv(output_path, index=False)
     
-    print("\n" + "=" * 60)
-    print("PREPROCESSING COMPLETE")
-    print("=" * 60)
+    print("\nDone.")
     
     return df_clean
 
 
 if __name__ == "__main__":
-    # Run the preprocessing pipeline
     expenses_clean = preprocess_data()
     
     print("\n\nCleaned dataset preview:")

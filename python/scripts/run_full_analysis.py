@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-Complete Analysis Runner
-Runs all analyses and generates results for the report
+Complete analysis runner.
 """
 
 import numpy as np
@@ -12,40 +11,30 @@ from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 import sys
 
-# Import custom modules (match actual repo functions)
 from data_preprocessing import preprocess_data
 from model_setup import create_design_matrix, run_ols_baseline
 from gibbs_sampling import gibbs_lm, beta_trace_plot, sigma2_trace_plot
 from convergence_detection import acf_plot_beta, acf_plot_sigma2
 from posterior_inference import posterior_predictive, ppc_plot, PPC_density_overlay, ppc_residual_plot
-
-# Manual diagnostics (new file)
 from mcmc_diagnostics import rhat, ess_geyer
 
-# Set up plotting
 sns.set_style("whitegrid")
 plt.rcParams['figure.figsize'] = (12, 8)
 
 print("="*80)
-print("BAYESIAN MCMC INSURANCE REGRESSION - FULL ANALYSIS")
+print("Bayesian MCMC Insurance Regression - Full Analysis")
 print("="*80)
 
-# ============================================================================
-# 1. LOAD AND PREPARE DATA
-# ============================================================================
-print("\n[1/7] Loading and preparing data...")
+print("\n[1/7] Loading data...")
 
-# Load cleaned data
 df = pd.read_csv('../../data/expenses_cleaned.csv')
 print(f"   Data shape: {df.shape}")
 print(f"   Columns: {list(df.columns)}")
 
-# Prepare design matrix and response
 y = df['charges'].values
 X = df.drop('charges', axis=1).values
 n, p = X.shape
 
-# Add intercept
 X_with_intercept = np.column_stack([np.ones(n), X])
 feature_names = ['Intercept'] + list(df.drop('charges', axis=1).columns)
 
@@ -53,10 +42,7 @@ print(f"   n = {n} observations")
 print(f"   p = {p} predictors (+ intercept)")
 print(f"   Features: {feature_names}")
 
-# ============================================================================
-# 2. RUN GIBBS SAMPLING - BASELINE MODEL
-# ============================================================================
-print("\n[2/7] Running Gibbs sampling (baseline model)...")
+print("\n[2/7] Running Gibbs sampling...")
 print("   Parameters: 50,000 iterations, 10,000 warmup, 3 chains")
 
 # Run Gibbs sampler
