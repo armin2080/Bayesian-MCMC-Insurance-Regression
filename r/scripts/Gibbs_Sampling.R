@@ -74,12 +74,12 @@ gibbs_lm <- function(y, X,
 
   # Gibbs sampling loop
   
+  Bn <- XtX + B0         
+  bn <- solve(Bn, Xty + B0 %*% b0)
+  
   for (iter in 1:n_iter) {
     
     # ----- Sample beta given sigma^2 -----
-    
-    Bn <- XtX + B0         
-    bn <- solve(Bn, Xty + B0 %*% b0)   
     
     beta_draw <- mvrnorm(
       n = 1,
@@ -90,14 +90,17 @@ gibbs_lm <- function(y, X,
     # ----- Sample sigma^2 given beta -----
     
     resid <- y - X %*% beta_draw
-    an <- a0 + n / 2
-    dn <- d0 + 0.5 * sum(resid^2)
+    a_n <- a0 + (n + p)/2
     
-    sigma2_draw <- 1 / rgamma(1, shape = an, rate = dn)
+    quad_prior <- t(beta_draw - b0) %*% B0 %*% (beta_draw - b0)
+    
+    d_n <- d0 + 0.5 * (sum(resid^2) + as.numeric(quad_prior))
+    
+    sigma2_draw <- 1 / rgamma(1, shape = a_n, rate = d_n)
     
     # --- ------ Store samples -----------
     
-    beta_store[iter, ]   <- beta_draw
+    beta_store[iter, ]  <- beta_draw
     sigma2_store[iter]  <- sigma2_draw
   }
   
@@ -125,7 +128,7 @@ beta_trace_plot <- function(beta_list, model_name) {
   n_chains <- length(beta_list)
   p <- ncol(beta_list[[1]])
 
-  plot_dir <- file.path("plots", model_name)
+  plot_dir <- file.path("..", "outputs", model_name, "plots", "trace")
   
   if (!dir.exists(plot_dir)) {
     dir.create(plot_dir, recursive = TRUE)
@@ -142,9 +145,9 @@ beta_trace_plot <- function(beta_list, model_name) {
          xlim = c(1, nrow(beta_list[[1]])),
          ylim = range(sapply(beta_list, function(x) x[, j])),
          type = "n",
-         main = bquote("Trace plot: " ~ beta[.(j-1)]),
+         main = bquote("Trace plot: " ~ beta[.(j)]),
          xlab = "Iteration",
-         ylab = bquote(beta[.(j-1)]))
+         ylab = bquote(beta[.(j)]))
     
     for (chain in 1:n_chains) {
       lines(beta_list[[chain]][, j], col = colors[chain])
@@ -164,7 +167,7 @@ sigma2_trace_plot <- function(sigma2_list,model_name){
   n_chains <- length(sigma2_list)
   colors <- rainbow(n_chains)
   
-  plot_dir <- file.path("plots", model_name)
+  plot_dir <- file.path("..", "outputs", model_name, "plots", "trace")
   
   if (!dir.exists(plot_dir)) {
     dir.create(plot_dir, recursive = TRUE)

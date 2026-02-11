@@ -1,29 +1,26 @@
 # ==============================================================================
-# Master Script: Run Complete Bayesian MCMC Analysis
-# ==============================================================================
-# This script orchestrates the complete analysis pipeline:
-# 1. Data preprocessing
-# 2. Baseline Gibbs sampling analysis
-# 3. Metropolis-Hastings analysis
-# 4. Algorithm comparison
-# 5. Residual diagnostics
-# 6. Comprehensive reporting
+# Run_Full_Analysis.R
+# Canonical end-to-end pipeline for the project.
+#
+# Data -> frequentist OLS baseline -> Gibbs + Metropolis-Hastings samplers ->
+# diagnostics (trace/ACF/ESS/R-hat) -> posterior predictive checks ->
+# algorithm comparison -> residual diagnostics.
 # ==============================================================================
 
-# Set up paths
-setwd(dirname(sys.frame(1)$ofile))  # Set working directory to script location
+# Ensure working directory is the scripts folder
+if (!is.null(sys.frame(1)$ofile)) {
+  setwd(dirname(sys.frame(1)$ofile))
+}
 
-# Load required libraries
 suppressPackageStartupMessages({
   library(MASS)
   library(coda)
   library(ggplot2)
-  library(gridExtra)
 })
 
-# Source all analysis scripts
-source("Data_Preprocessing.R")
-source("Model_Setup.R")
+# ------------------------------------------------------------------------------
+# Source project modules
+# ------------------------------------------------------------------------------
 source("Gibbs_Sampling.R")
 source("Metropolis_Hastings.R")
 source("Convergence_Detection.R")
@@ -31,271 +28,224 @@ source("Posterior_Inference.R")
 source("Algorithm_Comparison.R")
 source("Residual_Diagnostics.R")
 
-cat("\n")
-cat("╔"*80, "\n", sep="")
-cat("║ BAYESIAN MCMC ANALYSIS: MEDICAL INSURANCE COSTS\n")
-cat("║ Complete Analysis Pipeline\n")
-cat("╚"*80, "\n\n", sep="")
-
-# Start timing
-analysis_start_time <- Sys.time()
-
-# ==============================================================================
-# STEP 1: DATA LOADING AND PREPARATION
-# ==============================================================================
-
-cat("━"*80, "\n", sep="")
-cat("STEP 1: DATA LOADING AND PREPARATION\n")
-cat("━"*80, "\n\n", sep="")
-
-# Load cleaned data
+# ------------------------------------------------------------------------------
+# (1) Load cleaned dataset
+# ------------------------------------------------------------------------------
 data_path <- "../../data/expenses_cleaned.csv"
+if (!file.exists(data_path)) {
+  stop("Cannot find cleaned data at: ", normalizePath(data_path, winslash = "/", mustWork = FALSE))
+}
+
 df <- read.csv(data_path)
 
-cat(sprintf("✓ Loaded %d observations from %s\n", nrow(df), basename(data_path)))
+if ("sex" %in% names(df) && !is.factor(df$sex)) df$sex <- as.factor(df$sex)
+if ("smoker" %in% names(df) && !is.factor(df$smoker)) df$smoker <- as.factor(df$smoker)
 
-# Prepare matrices
-y <- df$charges
-X <- cbind(1, as.matrix(df[, c("age", "sex", "bmi", "children", "smoker")]))
-colnames(X) <- c("Intercept", "Age", "Sex", "BMI", "Children", "Smoker")
+# ------------------------------------------------------------------------------
+# (2) Frequentist baseline: OLS + correlation matrix
+# ------------------------------------------------------------------------------
+ols_output_dir <- file.path("..", "outputs", "frequentist_baseline")
+dir.create(ols_output_dir, recursive = TRUE, showWarnings = FALSE)
 
-n <- nrow(X)
-p <- ncol(X)
+ols_fit <- lm(charges ~ age + sex + bmi + children + smoker, data = df)
 
-cat(sprintf("✓ Response variable: charges (n = %d)\n", n))
-cat(sprintf("✓ Features: %d predictors + intercept\n", p-1))
+sink(file.path(ols_output_dir, "ols_summary.txt"))
+cat("OLS baseline: charges ~ age + sex + bmi + children + smoker\n\n")
+print(summary(ols_fit))
+sink()
 
-# Descriptive statistics
-cat(sprintf("\nData summary:\n"))
-cat(sprintf("  Mean charges: $%.2f\n", mean(y)))
-cat(sprintf("  SD charges: $%.2f\n", sd(y)))
-cat(sprintf("  Range: $%.2f - $%.2f\n\n", min(y), max(y)))
-
-# ==============================================================================
-# STEP 2: GIBBS SAMPLING (BASELINE MODEL)
-# ==============================================================================
-
-cat("━"*80, "\n", sep="")
-cat("STEP 2: GIBBS SAMPLING (BASELINE MODEL)\n")
-cat("━"*80, "\n\n", sep="")
-
-# Priors
-prior_beta_mean <- rep(0, p)
-prior_beta_precision <- diag(0.001, p)
-prior_sigma2_shape <- 0.01
-prior_sigma2_scale <- 0.01
-
-# Sampling parameters
-n_iter <- 50000
-warmup <- 10000
-n_chains <- 3
-
-cat(sprintf("Running Gibbs sampler:\n"))
-cat(sprintf("  - Iterations: %d (warmup: %d)\n", n_iter, warmup))
-cat(sprintf("  - Chains: %d\n", n_chains))
-
-set.seed(42)
-
-gibbs_results <- lapply(1:n_chains, function(chain_id) {
-  cat(sprintf("  Chain %d/%d...\n", chain_id, n_chains))
-  gibbs_lm(y, X, prior_beta_mean, prior_beta_precision,
-           prior_sigma2_shape, prior_sigma2_scale,
-           n_iter, warmup, seed = 42 + chain_id)
-})
-
-cat("\n✓ Gibbs sampling complete\n\n")
-
-# ==============================================================================
-# STEP 3: METROPOLIS-HASTINGS ANALYSIS
-# ==============================================================================
-
-cat("━"*80, "\n", sep="")
-cat("STEP 3: METROPOLIS-HASTINGS ANALYSIS\n")
-cat("━"*80, "\n\n", sep="")
-
-cat(sprintf("Running Metropolis-Hastings sampler:\n"))
-cat(sprintf("  - Iterations: %d (warmup: %d)\n", n_iter, warmup))
-cat(sprintf("  - Chains: %d\n", n_chains))
-cat(sprintf("  - Adaptive tuning: enabled\n"))
-
-set.seed(42)
-
-mh_results <- lapply(1:n_chains, function(chain_id) {
-  cat(sprintf("  Chain %d/%d...\n", chain_id, n_chains))
-  metropolis_hastings_lm(y, X, prior_beta_mean, prior_beta_precision,
-                        prior_sigma2_shape, prior_sigma2_scale,
-                        n_iter, warmup, seed = 42 + chain_id)
-})
-
-cat("\n✓ Metropolis-Hastings sampling complete\n\n")
-
-# ==============================================================================
-# STEP 4: CONVERGENCE DIAGNOSTICS
-# ==============================================================================
-
-cat("━"*80, "\n", sep="")
-cat("STEP 4: CONVERGENCE DIAGNOSTICS\n")
-cat("━"*80, "\n\n", sep="")
-
-# Check Gibbs convergence
-cat("Gibbs Sampling Convergence:\n")
-gibbs_beta_chains <- lapply(gibbs_results, function(x) x$beta)
-gibbs_sigma2_chains <- lapply(gibbs_results, function(x) x$sigma2)
-
-rhat_gibbs_beta <- sapply(1:p, function(j) {
-  chains <- lapply(gibbs_beta_chains, function(x) x[, j])
-  mcmc_list <- mcmc.list(lapply(chains, mcmc))
-  gelman.diag(mcmc_list, autoburnin = FALSE)$psrf[1, 1]
-})
-
-for (j in 1:p) {
-  status <- ifelse(rhat_gibbs_beta[j] < 1.1, "✓", "✗")
-  cat(sprintf("  %s %s: R-hat = %.4f\n", status, colnames(X)[j], rhat_gibbs_beta[j]))
-}
-
-# Check MH convergence
-cat("\nMetropolis-Hastings Convergence:\n")
-mh_beta_chains <- lapply(mh_results, function(x) x$beta)
-mh_sigma2_chains <- lapply(mh_results, function(x) x$sigma2)
-
-rhat_mh_beta <- sapply(1:p, function(j) {
-  chains <- lapply(mh_beta_chains, function(x) x[, j])
-  mcmc_list <- mcmc.list(lapply(chains, mcmc))
-  gelman.diag(mcmc_list, autoburnin = FALSE)$psrf[1, 1]
-})
-
-for (j in 1:p) {
-  status <- ifelse(rhat_mh_beta[j] < 1.1, "✓", "✗")
-  cat(sprintf("  %s %s: R-hat = %.4f\n", status, colnames(X)[j], rhat_mh_beta[j]))
-}
-
-cat("\n")
-
-# ==============================================================================
-# STEP 5: ALGORITHM COMPARISON
-# ==============================================================================
-
-cat("━"*80, "\n", sep="")
-cat("STEP 5: ALGORITHM COMPARISON\n")
-cat("━"*80, "\n\n", sep="")
-
-compare_algorithms(
-  gibbs_results = gibbs_results,
-  mh_results = mh_results,
-  param_names = colnames(X),
-  output_dir = "../outputs/algorithm_comparison"
+write.csv(
+  coef(summary(ols_fit)),
+  file = file.path(ols_output_dir, "ols_coef_table.csv"),
+  row.names = TRUE
 )
 
-# ==============================================================================
-# STEP 6: RESIDUAL DIAGNOSTICS
-# ==============================================================================
+# Correlation matrix on numeric covariates
+cor_df <- data.frame(
+  age = df$age,
+  bmi = df$bmi,
+  children = df$children,
+  sex = if ("sex" %in% names(df)) as.numeric(df$sex) - 1 else NA,
+  smoker = if ("smoker" %in% names(df)) as.numeric(df$smoker) - 1 else NA,
+  charges = df$charges
+)
+cor_matrix <- cor(cor_df, use = "complete.obs")
+write.csv(cor_matrix, file = file.path(ols_output_dir, "cor_matrix.csv"))
 
-cat("\n")
-cat("━"*80, "\n", sep="")
-cat("STEP 6: RESIDUAL DIAGNOSTICS\n")
-cat("━"*80, "\n\n", sep="")
+cat("Saved OLS summary + correlation matrix to: ", normalizePath(ols_output_dir, winslash = "/", mustWork = FALSE), "\n")
 
-# Combine Gibbs chains
-gibbs_beta_all <- do.call(rbind, gibbs_beta_chains)
-gibbs_sigma2_all <- do.call(c, gibbs_sigma2_chains)
+# ------------------------------------------------------------------------------
+# (3) Design matrix for Bayesian samplers
+# ------------------------------------------------------------------------------
+X <- model.matrix(~ age + sex + bmi + children + smoker, data = df)
+y <- df$charges
 
-cat("Generating residual diagnostic plots...\n\n")
+p <- ncol(X)
+feature_names <- colnames(X)
 
+# ------------------------------------------------------------------------------
+# (4) Priors + MCMC settings
+# ------------------------------------------------------------------------------
+# Conjugate prior:
+#   beta | sigma2 ~ N(b0, sigma2 * B0^{-1})
+#   sigma2 ~ Inv-Gamma(a0, d0)
+
+b0 <- rep(0, p)
+B0 <- diag(1e-4, p)       # weak prior
+
+a0 <- 0.01
+d0 <- 0.01
+
+n_iter <- 10000
+warmup <- 2000
+n_chains <- 4
+seed_base <- 123
+
+# ------------------------------------------------------------------------------
+# (5) Gibbs sampler
+# ------------------------------------------------------------------------------
+cat("\n", strrep("=", 70), "\n", sep = "")
+cat("RUNNING GIBBS SAMPLER\n")
+cat(strrep("=", 70), "\n", sep = "")
+
+start_gibbs <- Sys.time()
+gibbs_results <- gibbs_lm(
+  y = y,
+  X = X,
+  n_iter = n_iter,
+  warmup = warmup,
+  n_chains = n_chains,
+  b0 = b0,
+  B0 = B0,
+  a0 = a0,
+  d0 = d0,
+  seed = seed_base
+)
+gibbs_time_total <- as.numeric(difftime(Sys.time(), start_gibbs, units = "secs"))
+
+# Inject timing (Algorithm_Comparison.R expects time_elapsed)
+for (k in seq_along(gibbs_results)) {
+  gibbs_results[[k]]$time_elapsed <- gibbs_time_total / n_chains
+}
+
+beta_list_gibbs <- lapply(gibbs_results, function(ch) ch$beta)
+sigma2_list_gibbs <- lapply(gibbs_results, function(ch) ch$sigma2)
+
+for (k in seq_along(beta_list_gibbs)) colnames(beta_list_gibbs[[k]]) <- feature_names
+
+# Trace plots
+beta_trace_plot(beta_list_gibbs, "gibbs_baseline")
+sigma2_trace_plot(sigma2_list_gibbs, "gibbs_baseline")
+
+# Convergence diagnostics
+acf_plot_beta(beta_list_gibbs, "gibbs_baseline")
+acf_plot_sigma2(sigma2_list_gibbs, "gibbs_baseline")
+ess_beta_table(beta_list_gibbs, X, "gibbs_baseline")
+ess_sigma2_table(sigma2_list_gibbs, "gibbs_baseline")
+rhat_beta_table(beta_list_gibbs, X, "gibbs_baseline")
+rhat_sigma2_table(sigma2_list_gibbs, "gibbs_baseline")
+
+# Posterior summaries
+beta_sum_gibbs <- beta_summary_stats(beta_list_gibbs)
+sigma2_sum_gibbs <- sigma2_summary_stats(sigma2_list_gibbs)
+
+out_dir_baseline <- file.path("..", "outputs", "gibbs_baseline")
+dir.create(out_dir_baseline, recursive = TRUE, showWarnings = FALSE)
+write.csv(beta_sum_gibbs, file = file.path(out_dir_baseline, "gibbs_beta_summary.csv"), row.names = TRUE)
+write.csv(as.data.frame(t(sigma2_sum_gibbs)), file = file.path(out_dir_baseline, "gibbs_sigma2_summary.csv"), row.names = FALSE)
+
+# Posterior predictive checks (Gibbs)
+y_rep_gibbs <- posterior_predictive(beta_list_gibbs, sigma2_list_gibbs, X)
+ppc_plot(y, y_rep_gibbs, "gibbs_baseline")
+PPC_density_overlay(y, y_rep_gibbs, "gibbs_baseline")
+ppc_residual_plot(y, y_rep_gibbs, "gibbs_baseline")
+
+# Residual diagnostics (Gibbs)
+beta_all_gibbs <- do.call(rbind, beta_list_gibbs)
+sigma2_all_gibbs <- unlist(sigma2_list_gibbs)
 plot_residual_diagnostics(
   y_obs = y,
   X = X,
-  beta_samples = gibbs_beta_all,
-  sigma2_samples = gibbs_sigma2_all,
-  output_path = "../outputs/gibbs_result/residual_diagnostics.png",
-  model_name = "Gibbs Sampler"
+  beta_samples = beta_all_gibbs,
+  sigma2_samples = sigma2_all_gibbs,
+  output_path = file.path(out_dir_baseline, "gibbs_residual_diagnostics.png"),
+  model_name = "Gibbs baseline"
 )
 
-# ==============================================================================
-# STEP 7: POSTERIOR INFERENCE AND SUMMARY
-# ==============================================================================
+# ------------------------------------------------------------------------------
+# (6) Metropolis-Hastings sampler
+# ------------------------------------------------------------------------------
+cat("\n", strrep("=", 70), "\n", sep = "")
+cat("RUNNING METROPOLIS-HASTINGS SAMPLER\n")
+cat(strrep("=", 70), "\n", sep = "")
 
-cat("\n")
-cat("━"*80, "\n", sep="")
-cat("STEP 7: POSTERIOR INFERENCE AND SUMMARY\n")
-cat("━"*80, "\n\n", sep="")
-
-# Posterior estimates
-beta_mean <- colMeans(gibbs_beta_all)
-sigma2_mean <- mean(gibbs_sigma2_all)
-
-cat("Posterior Estimates:\n")
-for (j in 1:p) {
-  ci_lower <- quantile(gibbs_beta_all[, j], 0.025)
-  ci_upper <- quantile(gibbs_beta_all[, j], 0.975)
-  cat(sprintf("  %s: %.4f [%.4f, %.4f]\n", colnames(X)[j], beta_mean[j], ci_lower, ci_upper))
-}
-cat(sprintf("  σ²: %.4f\n\n", sigma2_mean))
-
-# Model fit
-y_pred <- X %*% beta_mean
-r_squared <- 1 - sum((y - y_pred)^2) / sum((y - mean(y))^2)
-rmse <- sqrt(mean((y - y_pred)^2))
-mae <- mean(abs(y - y_pred))
-
-cat("Model Fit Statistics:\n")
-cat(sprintf("  R² = %.4f (%.1f%% variance explained)\n", r_squared, r_squared * 100))
-cat(sprintf("  RMSE = $%.2f\n", rmse))
-cat(sprintf("  MAE = $%.2f\n\n", mae))
-
-# Save summary
-output_dir <- "../outputs/final_summary"
-dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-
-# Posterior estimates table
-posterior_summary <- data.frame(
-  Parameter = c(colnames(X), "σ²"),
-  Mean = c(beta_mean, sigma2_mean),
-  SD = c(apply(gibbs_beta_all, 2, sd), sd(gibbs_sigma2_all)),
-  CI_2.5 = c(apply(gibbs_beta_all, 2, function(x) quantile(x, 0.025)), quantile(gibbs_sigma2_all, 0.025)),
-  CI_97.5 = c(apply(gibbs_beta_all, 2, function(x) quantile(x, 0.975)), quantile(gibbs_sigma2_all, 0.975))
+mh_results <- metropolis_hastings_lm(
+  y = y,
+  X = X,
+  n_iter = n_iter,
+  warmup = warmup,
+  n_chains = n_chains,
+  b0 = b0,
+  B0_inv = B0,
+  a0 = a0,
+  d0 = d0,
+  proposal_sd_beta = 0.1,
+  proposal_sd_sigma2 = 0.1,
+  seed = seed_base
 )
 
-write.csv(posterior_summary, file.path(output_dir, "posterior_summary.csv"), row.names = FALSE)
+beta_list_mh <- lapply(mh_results, function(ch) ch$beta)
+sigma2_list_mh <- lapply(mh_results, function(ch) ch$sigma2)
+for (k in seq_along(beta_list_mh)) colnames(beta_list_mh[[k]]) <- feature_names
 
-# Model fit table
-model_fit <- data.frame(
-  Statistic = c("R²", "RMSE", "MAE", "n", "p", "Effective_n"),
-  Value = c(r_squared, rmse, mae, n, p, n)
+beta_trace_plot_mh(beta_list_mh, feature_names = feature_names, model_name = "mh_baseline")
+sigma2_trace_plot_mh(sigma2_list_mh,"mh_baseline")
+
+# Convergence diagnostics
+acf_plot_beta(beta_list_mh, "mh_baseline")
+acf_plot_sigma2(sigma2_list_mh, "mh_baseline")
+ess_beta_table(beta_list_mh, X, "mh_baseline")
+ess_sigma2_table(sigma2_list_mh, "mh_baseline")
+rhat_beta_table(beta_list_mh, X, "mh_baseline")
+rhat_sigma2_table(sigma2_list_mh, "mh_baseline")
+
+# Posterior summaries
+beta_sum_mh <- beta_summary_stats(beta_list_mh)
+sigma2_sum_mh <- sigma2_summary_stats(sigma2_list_mh)
+
+out_dir_mh <- file.path("..", "outputs", "mh_baseline")
+dir.create(out_dir_mh, recursive = TRUE, showWarnings = FALSE)
+write.csv(beta_sum_mh, file = file.path(out_dir_mh, "mh_beta_summary.csv"), row.names = TRUE)
+write.csv(as.data.frame(t(sigma2_sum_mh)), file = file.path(out_dir_mh, "mh_sigma2_summary.csv"), row.names = FALSE)
+
+# Posterior predictive checks (MH)
+y_rep_mh <- posterior_predictive(beta_list_mh, sigma2_list_mh, X)
+ppc_plot(y, y_rep_mh, "mh_baseline")
+PPC_density_overlay(y, y_rep_mh, "mh_baseline")
+ppc_residual_plot(y, y_rep_mh, "mh_baseline")
+
+# Residual diagnostics (MH)
+beta_all_mh <- do.call(rbind, beta_list_mh)
+sigma2_all_mh <- unlist(sigma2_list_mh)
+plot_residual_diagnostics(
+  y_obs = y,
+  X = X,
+  beta_samples = beta_all_mh,
+  sigma2_samples = sigma2_all_mh,
+  output_path = file.path(out_dir_mh, "mh_residual_diagnostics.png"),
+  model_name = "MH baseline"
 )
 
-write.csv(model_fit, file.path(output_dir, "model_fit.csv"), row.names = FALSE)
+# ------------------------------------------------------------------------------
+# (7) Algorithm comparison (time/ESS/R-hat)
+# ------------------------------------------------------------------------------
+compare_algorithms(
+  gibbs_results = gibbs_results,
+  mh_results = mh_results,
+  model_name = "baseline",
+  output_dir = "../outputs"
+)
 
-cat(sprintf("✓ Results saved to %s\n\n", output_dir))
-
-# ==============================================================================
-# FINAL SUMMARY
-# ==============================================================================
-
-analysis_end_time <- Sys.time()
-total_time <- as.numeric(difftime(analysis_end_time, analysis_start_time, units = "secs"))
-
-cat("\n")
-cat("╔"*80, "\n", sep="")
-cat("║ ANALYSIS COMPLETE\n")
-cat("╚"*80, "\n", sep="")
-cat(sprintf("Total analysis time: %.2f seconds (%.1f minutes)\n\n", total_time, total_time/60))
-
-cat("Summary:\n")
-cat(sprintf("  ✓ Data: %d observations, %d predictors\n", n, p-1))
-cat(sprintf("  ✓ Algorithms: Gibbs + Metropolis-Hastings\n"))
-cat(sprintf("  ✓ Chains: %d per algorithm (%d iterations each)\n", n_chains, n_iter))
-cat(sprintf("  ✓ Convergence: %s\n", 
-            ifelse(all(c(rhat_gibbs_beta, rhat_mh_beta) < 1.1), 
-                   "All chains converged", 
-                   "Check diagnostics")))
-cat(sprintf("  ✓ Model fit: R² = %.3f\n\n", r_squared))
-
-cat("Output directories:\n")
-cat("  - ../outputs/gibbs_result/\n")
-cat("  - ../outputs/mh_baseline/\n")
-cat("  - ../outputs/algorithm_comparison/\n")
-cat("  - ../outputs/final_summary/\n\n")
-
-cat("="*80, "\n", sep="")
-cat("All results saved. Analysis pipeline complete!\n")
-cat("="*80, "\n", sep="")
+cat("\n Full analysis finished.\n")
+cat("Outputs: ", normalizePath(out_dir_baseline, winslash = "/", mustWork = FALSE), "\n")
+cat("Plots (trace/ACF/PPC): ", normalizePath("plots", winslash = "/", mustWork = FALSE), "\n")

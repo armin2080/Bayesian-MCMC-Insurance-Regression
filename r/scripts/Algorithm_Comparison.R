@@ -41,7 +41,8 @@ compute_rhat <- function(chains_list) {
 #' @param mh_results List of results from MH sampler
 #' @param param_names Character vector of parameter names
 #' @param output_dir Output directory for results
-compare_algorithms <- function(gibbs_results, mh_results, 
+compare_algorithms <- function(gibbs_results, mh_results,
+                               model_name = "baseline",
                               param_names = NULL, 
                               output_dir = "../outputs/algorithm_comparison") {
   

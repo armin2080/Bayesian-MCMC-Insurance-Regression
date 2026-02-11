@@ -12,9 +12,9 @@
 #    - Set permissions: chmod 600 ~/.kaggle/kaggle.json
 # ==============================================================================
 
-cat("="*80, "\n", sep="")
+cat("=", 80, "\n", sep="")
 cat("DOWNLOADING MEDICAL INSURANCE DATASET FROM KAGGLE\n")
-cat("="*80, "\n\n", sep="")
+cat("=", 80, "\n\n", sep="")
 
 # Dataset information
 dataset_slug <- "harshsingh2209/medical-insurance-payout"
@@ -33,7 +33,7 @@ if (!dir.exists(target_dir)) {
 kaggle_available <- system("which kaggle", ignore.stdout = TRUE, ignore.stderr = TRUE) == 0
 
 if (!kaggle_available) {
-  cat("✗ Kaggle CLI not found!\n\n")
+  cat(" Kaggle CLI not found!\n\n")
   cat("To install:\n")
   cat("  1. Install Python and pip\n")
   cat("  2. Run: pip install kaggle\n")
@@ -45,7 +45,7 @@ if (!kaggle_available) {
   stop("Kaggle CLI not available")
 }
 
-cat("✓ Kaggle CLI found\n\n")
+cat(" Kaggle CLI found\n\n")
 
 # Download dataset
 cat("Downloading dataset...\n")
@@ -59,7 +59,7 @@ result <- system2(
 )
 
 if (attr(result, "status") == 0 || is.null(attr(result, "status"))) {
-  cat("✓ Download complete!\n\n")
+  cat(" Download complete!\n\n")
   
   # List downloaded files
   cat("Downloaded files:\n")
@@ -73,12 +73,12 @@ if (attr(result, "status") == 0 || is.null(attr(result, "status"))) {
   }
   
   cat("\n")
-  cat("="*80, "\n", sep="")
+  cat("=", 80, "\n", sep="")
   cat("DATASET READY FOR ANALYSIS\n")
-  cat("="*80, "\n", sep="")
+  cat("=", 80, "\n", sep="")
   
 } else {
-  cat("✗ Download failed!\n")
+  cat(" Download failed!\n")
   cat("\nError output:\n")
   cat(paste(result, collapse = "\n"))
   cat("\n\nTroubleshooting:\n")

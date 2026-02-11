@@ -1,8 +1,0 @@
-Parameter Rhat
-(Intercept) 1
-age 1
-sex 1
-bmi 1
-children 1
-smoker 1
-bmi:smoker 1.0001

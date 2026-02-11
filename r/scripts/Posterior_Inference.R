@@ -3,7 +3,6 @@
 #-----------------------------------------------------
 # This function generates posterior predictive draws
 # y_rep ~ p(y_new | beta, sigma^2)
-# using posterior samples obtained from the Gibbs sampler.
 #
 # Args:
 #   beta_list   : list of posterior draws of regression coefficients (by chain)
@@ -53,7 +52,7 @@ posterior_predictive <- function(beta_list, sigma2_list, X_new) {
 
 ppc_plot <- function(y_obs, y_rep, model_name) {
   
-  plot_dir <- file.path("plots", model_name, "PPC")
+  plot_dir <- file.path("..", "outputs", model_name, "plots", "PPC")
   if (!dir.exists(plot_dir))
     dir.create(plot_dir, recursive = TRUE, showWarnings = FALSE)
   
@@ -88,7 +87,7 @@ ppc_plot <- function(y_obs, y_rep, model_name) {
 
 PPC_density_overlay <- function(y_obs, y_rep, model_name) {
   
-  plot_dir <- file.path("plots", model_name, "PPC")
+  plot_dir <- file.path("..", "outputs", model_name, "plots", "PPC")
   if (!dir.exists(plot_dir))
     dir.create(plot_dir, recursive = TRUE)
   
@@ -126,7 +125,7 @@ PPC_density_overlay <- function(y_obs, y_rep, model_name) {
 
 ppc_residual_plot <- function(y_obs, y_rep, model_name) {
   
-  plot_dir <- file.path("plots", model_name, "PPC")
+  plot_dir <- file.path("..", "outputs", model_name, "plots", "PPC")
   if (!dir.exists(plot_dir))
     dir.create(plot_dir, recursive = TRUE)
   

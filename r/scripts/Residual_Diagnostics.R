@@ -133,15 +133,15 @@ plot_residual_diagnostics <- function(y_obs, X, beta_samples, sigma2_samples,
   
   if (!is.null(output_path)) {
     dev.off()
-    cat(sprintf("✓ Residual diagnostics saved to %s\n", output_path))
+    cat(sprintf(" Residual diagnostics saved to %s\n", output_path))
   }
   
   # ==========================================
   # Diagnostic Tests
   # ==========================================
-  cat("\n", "="*60, "\n", sep="")
+  cat("\n", "=", 60, "\n", sep="")
   cat("RESIDUAL DIAGNOSTIC TESTS\n")
-  cat("="*60, "\n", sep="")
+  cat("=", 60, "\n", sep="")
   
   # Shapiro-Wilk test for normality
   if (length(residuals) <= 5000) {
@@ -149,9 +149,9 @@ plot_residual_diagnostics <- function(y_obs, X, beta_samples, sigma2_samples,
     cat(sprintf("Shapiro-Wilk normality test: W = %.4f, p-value = %.4e\n",
                 sw_test$statistic, sw_test$p.value))
     if (sw_test$p.value < 0.05) {
-      cat("  → Residuals deviate from normality (p < 0.05)\n")
+      cat(" Residuals deviate from normality (p < 0.05)\n")
     } else {
-      cat("  → Residuals are approximately normal (p ≥ 0.05)\n")
+      cat(" Residuals are approximately normal (p ≥ 0.05)\n")
     }
   } else {
     cat("Shapiro-Wilk test skipped (n > 5000)\n")
@@ -165,9 +165,9 @@ plot_residual_diagnostics <- function(y_obs, X, beta_samples, sigma2_samples,
     cat(sprintf("\nDurbin-Watson test: DW = %.4f, p-value = %.4e\n",
                 dw_test$statistic, dw_test$p.value))
     if (abs(dw_test$statistic - 2) > 0.5) {
-      cat("  → Evidence of autocorrelation\n")
+      cat(" Evidence of autocorrelation\n")
     } else {
-      cat("  → No significant autocorrelation\n")
+      cat(" No significant autocorrelation\n")
     }
   }
   
@@ -178,13 +178,13 @@ plot_residual_diagnostics <- function(y_obs, X, beta_samples, sigma2_samples,
     cat(sprintf("\nBreusch-Pagan test: BP = %.4f, p-value = %.4e\n",
                 bp_test$statistic, bp_test$p.value))
     if (bp_test$p.value < 0.05) {
-      cat("  → Evidence of heteroscedasticity (p < 0.05)\n")
+      cat(" Evidence of heteroscedasticity (p < 0.05)\n")
     } else {
-      cat("  → Homoscedastic (p ≥ 0.05)\n")
+      cat(" Homoscedastic (p ≥ 0.05)\n")
     }
   }
   
-  cat("="*60, "\n", sep="")
+  cat("=", 60, "\n", sep="")
   
   return(invisible(list(
     residuals = residuals,
@@ -221,7 +221,7 @@ plot_residual_comparison <- function(models_list, model_names, output_path = NUL
   
   if (!is.null(output_path)) {
     dev.off()
-    cat(sprintf("✓ Residual comparison saved to %s\n", output_path))
+    cat(sprintf(" Residual comparison saved to %s\n", output_path))
   }
 }
 

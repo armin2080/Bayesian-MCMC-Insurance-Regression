@@ -26,7 +26,7 @@
 acf_plot_beta <- function(beta_list, model_name, lag_max = 50, ylim_zoom = 0.1){
   
   # create output directory
-  plot_dir <- file.path("plots",model_name, "ACF_plots")
+  plot_dir <- file.path("..", "outputs", model_name, "plots", "ACF_plots")
   full_dir <- file.path(plot_dir, "full")
   zoom_dir <- file.path(plot_dir, "zoomed")
   
@@ -100,7 +100,7 @@ acf_plot_beta <- function(beta_list, model_name, lag_max = 50, ylim_zoom = 0.1){
 
 acf_plot_sigma2 <- function(sigma2_list, model_name, lag_max = 50, ylim_zoom = 0.1) {
   
-  plot_dir <- file.path("plots",model_name, "ACF_plots")
+  plot_dir <- file.path("..", "outputs", model_name, "plots", "ACF_plots")
   full_dir <- file.path(plot_dir, "full")
   zoom_dir <- file.path(plot_dir, "zoomed")
 
@@ -179,7 +179,7 @@ ess_beta_table <- function(beta_list, x, model_name) {
     stop("Package 'coda' not installed. Run: install.packages('coda')")
   }
   
-  output_dir <- file.path("r", "outputs", model_name, "ESS_tables")
+  output_dir <- file.path("..", "outputs", model_name, "tables", "ESS")
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   
   # convert each chain matrix to mcmc, then to mcmc.list
@@ -219,7 +219,7 @@ ess_sigma2_table <- function(sigma2_list, model_name) {
     stop("Package 'coda' not installed. Run: install.packages('coda')")
   }
   
-  output_dir <- file.path("r", "outputs", model_name, "ESS_tables")
+  output_dir <- file.path("..", "outputs", model_name, "tables", "ESS")
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   
   mlist <- coda::mcmc.list(lapply(sigma2_list, coda::mcmc))
@@ -259,7 +259,7 @@ rhat_scalar <- function(chains) {
 }
 
 rhat_beta_table <- function(beta_list, x, model_name) {
-  output_dir <- file.path("r", "outputs", model_name, "Rhat_tables")
+  output_dir <- file.path("..", "outputs", model_name, "tables", "Rhat")
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   
   p <- ncol(beta_list[[1]])
@@ -281,7 +281,7 @@ rhat_beta_table <- function(beta_list, x, model_name) {
 }
 
 rhat_sigma2_table <- function(sigma2_list, model_name) {
-  output_dir <- file.path("r", "outputs", model_name, "Rhat_tables")
+  output_dir <- file.path("..", "outputs", model_name, "tables", "Rhat")
   dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
   
   rhat <- rhat_scalar(sigma2_list)

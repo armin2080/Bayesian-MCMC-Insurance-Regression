@@ -25,11 +25,14 @@ log_posterior <- function(y, X, beta, sigma2, b0, B0_inv, a0, d0) {
   
   # Log-prior for beta | sigma2 ~ N(b0, sigma2 * B0^{-1})
   diff_beta <- beta - b0
-  log_prior_beta <- -length(beta)/2 * log(2 * pi * sigma2) - 
-                    t(diff_beta) %*% B0_inv %*% diff_beta / (2 * sigma2)
+  log_det_B0 <- as.numeric(determinant(B0_inv, logarithm = TRUE)$modulus)
+  p <- length(beta)
+  log_prior_beta <- 0.5 * log_det_B0 - p/2 * log(2 * pi * sigma2) -
+    as.numeric(t(diff_beta) %*% B0_inv %*% diff_beta) / (2 * sigma2)
+  
   
   # Log-prior for sigma2 ~ IG(a0, d0)
-  log_prior_sigma2 <- -a0 * log(d0) - lgamma(a0) - (a0 + 1) * log(sigma2) - d0/sigma2
+  log_prior_sigma2 <- a0 * log(d0) - lgamma(a0) - (a0 + 1) * log(sigma2) - d0/sigma2
   
   # Total log-posterior
   log_post <- log_lik + log_prior_beta + log_prior_sigma2
@@ -49,7 +52,7 @@ log_posterior <- function(y, X, beta, sigma2, b0, B0_inv, a0, d0) {
 #' @param warmup Burn-in iterations to discard
 #' @param n_chains Number of chains
 #' @param b0 Prior mean for beta (default: zeros)
-#' @param B0_inv Prior precision matrix for beta (default: 1e4 * I)
+#' @param B0_inv Prior precision matrix for beta (default: 1e4)
 #' @param a0 Inverse-Gamma shape (default: 0.01)
 #' @param d0 Inverse-Gamma scale (default: 0.01)
 #' @param proposal_sd_beta SD for beta proposal (scaled by sqrt(sigma2))
@@ -174,8 +177,8 @@ metropolis_hastings_lm <- function(y, X, n_iter = 10000, warmup = 2000, n_chains
 #' @param feature_names Names of features
 #' @param model_name Model name for file naming
 #' @param plot_dir Output directory
-beta_trace_plot_mh <- function(beta_list, feature_names = NULL, 
-                               model_name = "mh_baseline", plot_dir = "../outputs") {
+beta_trace_plot_mh <- function(beta_list, feature_names = NULL, model_name = "mh_baseline",
+                               plot_dir = "../outputs") {
   
   n_chains <- length(beta_list)
   n_params <- ncol(beta_list[[1]])
@@ -184,7 +187,7 @@ beta_trace_plot_mh <- function(beta_list, feature_names = NULL,
     feature_names <- paste0("beta_", 0:(n_params-1))
   }
   
-  output_path <- file.path(plot_dir, model_name)
+  output_path <- file.path(plot_dir, model_name, "plots", "trace")
   dir.create(output_path, recursive = TRUE, showWarnings = FALSE)
   
   colors <- c("blue", "red", "green", "purple")
@@ -215,7 +218,7 @@ beta_trace_plot_mh <- function(beta_list, feature_names = NULL,
     dev.off()
   }
   
-  cat(sprintf("✓ MH trace plots saved to %s\n", output_path))
+  cat(sprintf(" MH trace plots saved to %s\n", output_path))
 }
 
 
@@ -228,7 +231,7 @@ sigma2_trace_plot_mh <- function(sigma2_list, model_name = "mh_baseline",
                                  plot_dir = "../outputs") {
   
   n_chains <- length(sigma2_list)
-  output_path <- file.path(plot_dir, model_name)  
+  output_path <- file.path(plot_dir, model_name, "plots", "trace")  
   dir.create(output_path, recursive = TRUE, showWarnings = FALSE)
   
   colors <- c("blue", "red", "green", "purple")
@@ -257,7 +260,7 @@ sigma2_trace_plot_mh <- function(sigma2_list, model_name = "mh_baseline",
   
   dev.off()
   
-  cat(sprintf("✓ MH σ² trace plot saved to %s\n", output_path))
+  cat(sprintf(" MH σ² trace plot saved to %s\n", output_path))
 }
 
 
@@ -294,9 +297,9 @@ if (FALSE) {
   sigma2_trace_plot_mh(sigma2_list)
   
   # Print summaries
-  cat("\n", "="*60, "\n", sep="")
+  cat("\n", "=", 60, "\n", sep="")
   cat("SUMMARY STATISTICS\n")
-  cat("="*60, "\n", sep="")
+  cat("=", 60, "\n", sep="")
   
   beta_combined <- do.call(rbind, beta_list)
   cat("\nBeta posteriors:\n")
