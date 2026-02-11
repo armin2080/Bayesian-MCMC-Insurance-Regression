@@ -98,7 +98,7 @@ d0 <- 0.01
 
 n_iter <- 10000
 warmup <- 2000
-n_chains <- 3
+n_chains <- 4
 seed_base <- 123
 
 # ------------------------------------------------------------------------------
@@ -198,7 +198,7 @@ beta_list_mh <- lapply(mh_results, function(ch) ch$beta)
 sigma2_list_mh <- lapply(mh_results, function(ch) ch$sigma2)
 for (k in seq_along(beta_list_mh)) colnames(beta_list_mh[[k]]) <- feature_names
 
-beta_trace_plot_mh(beta_list_mh, "mh_baseline")
+beta_trace_plot_mh(beta_list_mh, feature_names = feature_names, model_name = "mh_baseline")
 sigma2_trace_plot_mh(sigma2_list_mh,"mh_baseline")
 
 # Convergence diagnostics

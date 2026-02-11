@@ -90,7 +90,7 @@ gibbs_lm <- function(y, X,
     # ----- Sample sigma^2 given beta -----
     
     resid <- y - X %*% beta_draw
-    a_n <- a0 + n / 2
+    a_n <- a0 + (n + p)/2
     
     quad_prior <- t(beta_draw - b0) %*% B0 %*% (beta_draw - b0)
     
