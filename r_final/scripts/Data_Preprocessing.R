@@ -67,3 +67,15 @@ expenses_clean <- expenses_clean %>%
 summary(expenses_clean) # just for check
 
 str(expenses_clean)
+
+# Distribution of insurance charges
+
+ggplot(df, aes(x = charges)) +
+  geom_histogram(bins = 40, fill = "lightblue", color = "black") +
+  labs(
+    title = "Distribution of insurance charges",
+    x = "charges",
+    y = "count"
+  ) +
+  theme_minimal(base_size = 12)
+
