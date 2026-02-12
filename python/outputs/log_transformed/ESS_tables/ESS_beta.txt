@@ -1,0 +1,10 @@
+Parameter	ESS
+beta_0	23040.9
+beta_1	22602.6
+beta_2	20813.6
+beta_3	23614.0
+beta_4	21323.7
+beta_5	21260.0
+beta_6	21718.2
+beta_7	23273.2
+beta_8	21108.8
